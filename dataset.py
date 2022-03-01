@@ -29,8 +29,8 @@ class ImageDataset(Dataset):
         img_A_a = self.imgs[index][:, :64, :]
         img_B_b = self.imgs[index][:, 64:, :]
 
-        img_A = self.transform(img_A_a.astype(np.uint8))  # jinghei
-        img_B = self.transform(img_B_b.astype(np.uint8))  # heiti
+        img_A = self.transform(img_A_a.astype(np.uint8))  # 京黑
+        img_B = self.transform(img_B_b.astype(np.uint8))  # 黑体
 
         return {'A': img_A, 'B': img_B}
 

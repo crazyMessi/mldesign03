@@ -2,12 +2,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
-try:
-    import ipdb
-except:
-    import pdb as ipdb
 
-
+# 为网络参数赋正态分布的初值
 def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -16,13 +12,14 @@ def weights_init_normal(m):
         torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
         torch.nn.init.constant_(m.bias.data, 0.0)
 
+
 ##############################
 #           U-NET
 ##############################
 
 class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4):
-        
+
         super(UNetDown, self).__init__()
         layers = [nn.Conv2d(in_size, out_size, ks, 2, 1, bias=False)]
         if normalize:
@@ -32,18 +29,16 @@ class UNetDown(nn.Module):
             layers.append(nn.Dropout(dropout))
         self.model = nn.Sequential(*layers)
 
-
-
     def forward(self, x):
         return self.model(x)
 
+
 class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
-        
         super(UNetUp, self).__init__()
-        layers = [  nn.ConvTranspose2d(in_size, out_size, 4, 2, 1, bias=False),
-                    nn.InstanceNorm2d(out_size),
-                    nn.ReLU(inplace=True)]
+        layers = [nn.ConvTranspose2d(in_size, out_size, 4, 2, 1, bias=False),
+                  nn.InstanceNorm2d(out_size),
+                  nn.ReLU(inplace=True)]
         if dropout:
             layers.append(nn.Dropout(dropout))
 
@@ -56,10 +51,11 @@ class UNetUp(nn.Module):
 
         return x
 
+
 class GeneratorUNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3):
         super(GeneratorUNet, self).__init__()
-        
+
         self.down1 = UNetDown(in_channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
@@ -86,21 +82,21 @@ class GeneratorUNet(nn.Module):
 
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
-        d1 = self.down1(x)     #x:[1, 3, 64, 64]  d1:[1, 64, 32, 32]
-        d2 = self.down2(d1)    #d2:[1,128,16,16]
-        d3 = self.down3(d2)    #d3:[1,256,8,8]
-        d4 = self.down4(d3)    #d4:[1,512,4,4]
-        d5 = self.down5(d4)    #d5:[1,512,2,2]
-        d6 = self.down6(d5)    #d6:[1,512,1,1]
+        d1 = self.down1(x)  # x:[1, 3, 64, 64]  d1:[1, 64, 32, 32]
+        d2 = self.down2(d1)  # d2:[1,128,16,16]
+        d3 = self.down3(d2)  # d3:[1,256,8,8]
+        d4 = self.down4(d3)  # d4:[1,512,4,4]
+        d5 = self.down5(d4)  # d5:[1,512,2,2]
+        d6 = self.down6(d5)  # d6:[1,512,1,1]
         # d7 = self.down7(d6)    #d7:[1,512,2,2]
         # d8 = self.down8(d7)    #d8:[1,512,1,1]
         # ipdb.set_trace()
-        u1 = self.up1(d6, d5)  #u1:[1,1024,2,2]
-        
-        u2 = self.up2(u1, d4)  #u2:[1,1024,4,4]
-        u3 = self.up3(u2, d3)  #u3:[1,1024,8,8]
-        u4 = self.up4(u3, d2)  #u4:[1,1024,16,16]
-        u5 = self.up5(u4, d1)  #u5:[1,512,32,32]
+        u1 = self.up1(d6, d5)  # u1:[1,1024,2,2]
+
+        u2 = self.up2(u1, d4)  # u2:[1,1024,4,4]
+        u3 = self.up3(u2, d3)  # u3:[1,1024,8,8]
+        u4 = self.up4(u3, d2)  # u4:[1,1024,16,16]
+        u5 = self.up5(u4, d1)  # u5:[1,512,32,32]
         # u6 = self.up6(u5, d1)  #u6:[1,256,64,64]
         # u7 = self.up7(u6, d1)  #u7:[1,128,128,128]
 
@@ -124,7 +120,7 @@ class Discriminator(nn.Module):
             return layers
 
         self.model = nn.Sequential(
-            *discriminator_block(in_channels*2, 64, normalization=False),
+            *discriminator_block(in_channels * 2, 64, normalization=False),
             *discriminator_block(64, 128),
             *discriminator_block(128, 256),
             *discriminator_block(256, 512),
@@ -137,14 +133,3 @@ class Discriminator(nn.Module):
         # by channels to produce input
         img_input = torch.cat((img_A, img_B), 1)
         return self.model(img_input)
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

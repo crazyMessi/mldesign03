@@ -13,6 +13,7 @@ from torchvision.utils import save_image
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
+import matplotlib.pyplot as plt
 from model import *
 from dataset import *
 
@@ -77,6 +78,7 @@ if cuda:
 
 # ipdb.set_trace()
 
+# 为网络参数赋初值
 generator.apply(weights_init_normal)
 discriminator.apply(weights_init_normal)
 
@@ -137,7 +139,7 @@ discriminator.train()
 prev_time = time.time()
 
 
-# lr shuai jian
+# 设置衰减论
 def lr_scheduler(optimizer, init_lr, epoch, lr_decay_iter):
     if epoch % lr_decay_iter:
         return init_lr
