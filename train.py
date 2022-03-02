@@ -46,8 +46,7 @@ parser.add_argument('--sample_interval', type=int, default=500,
 parser.add_argument('--checkpoint_interval', type=int, default=20, help='interval between model checkpoints')
 opt = parser.parse_args()
 
-# ipdb.set_trace()
-root_path = os.getcwd()  # '/mnt/NeuralStyle/Laboratory_Use/pix2pix/pix2pix_Use/pix2pix-step1'
+root_path = os.getcwd()
 data_path = root_path+"/fontdata/"
 
 os.makedirs('images/%s' % opt.dataset_name, exist_ok=True)  # 过程图片

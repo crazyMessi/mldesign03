@@ -1,3 +1,7 @@
+[TOC]
+
+
+
 ## 前置知识
 
 ### pic2pic
@@ -37,13 +41,29 @@
 
 ### 网络层
 
-**LeakyRELU**
+**DropOut**
 
-带泄露的整流线性激活函数。
+将部分元素置零, 是正则化的一种方式
+
+<img src="D:\Work\AI\pytorch\Font_pix_fast\exp03.assets\image-20220302133548971.png" alt="image-20220302133548971" style="zoom: 50%;" />
+
+其方式即随机地将一些输出单元置零，达到类似bagging集成的效果
+
+
+
+
+
+**ReLU、LeakyReLU**
+
+整流线性激活函数（ReLU）和带泄露的整流线性激活函数（LeakyReLU）。ReLU的表达式为
+$$
+y_i = \max(0,x_i)
+$$
+LeakyReLU是前者的推广。
 
 ![../_images/LeakyReLU.png](https://pytorch.org/docs/stable/_images/LeakyReLU.png)
 
-其中小于零部分那一段的斜率为函数传入参数。默认为零，即默认这是一个整流线性激活函数。
+在torch.nn.LeakyReLU中，小于零部分那一段的斜率为函数传入参数。默认为零，即默认这是一个整流线性激活函数。
 
 
 
