@@ -21,7 +21,7 @@ class UNetDown(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4):
 
         super(UNetDown, self).__init__()
-        layers = [nn.Conv2d(in_size, out_size, ks, 2, 1, bias=False)]
+        layers = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=2, padding=1, bias=False)]
         if normalize:
             layers.append(nn.InstanceNorm2d(out_size))
         layers.append(nn.LeakyReLU(0.2))
@@ -36,7 +36,7 @@ class UNetDown(nn.Module):
 class UNetUp(nn.Module):
     def __init__(self, in_size, out_size, dropout=0.0):
         super(UNetUp, self).__init__()
-        layers = [nn.ConvTranspose2d(in_size, out_size, 4, 2, 1, bias=False),
+        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1, bias=False),
                   nn.InstanceNorm2d(out_size),
                   nn.ReLU(inplace=True)]
         if dropout:
@@ -52,6 +52,15 @@ class UNetUp(nn.Module):
         return x
 
 
+class testConv2d:
+    def __init__(self, in_size, out_size, ks=4, stride=2, padding=1):
+        super(testConv2d, self).__init__()
+        conv2d = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=stride, padding=1, bias=False)]
+        self.model = nn.Sequential(conv2d)
+        self.norm = nn.Sequential(nn.InstanceNorm2d(out_size))
+
+
+
 class GeneratorUNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3):
         super(GeneratorUNet, self).__init__()
@@ -61,8 +70,8 @@ class GeneratorUNet(nn.Module):
         self.down3 = UNetDown(128, 256)
         self.down4 = UNetDown(256, 512, dropout=0.5)
         self.down5 = UNetDown(512, 512, dropout=0.5)
-        self.down6 = UNetDown(512, 512, dropout=0.5)
-        # self.down7 = UNetDown(512, 512, dropout=0.5, ks=1)
+        self.down6 = UNetDown(512, 512, dropout=0.5, normalize=False)  # 不需要正规化了
+        self.down7 = UNetDown(512, 512, dropout=0.5, ks=1)
         # self.down8 = UNetDown(512, 512, normalize=False, dropout=0.5, ks=1)
 
         self.up1 = UNetUp(512, 512, dropout=0.5)

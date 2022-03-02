@@ -39,9 +39,11 @@
 
 **LeakyRELU**
 
+带泄露的整流线性激活函数。
+
 ![../_images/LeakyReLU.png](https://pytorch.org/docs/stable/_images/LeakyReLU.png)
 
-其中小于零部分那一段的斜率默认为零，但可以设置
+其中小于零部分那一段的斜率为函数传入参数。默认为零，即默认这是一个整流线性激活函数。
 
 
 
