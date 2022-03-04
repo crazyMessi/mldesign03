@@ -13,7 +13,9 @@ from torchvision.utils import save_image
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from torch.autograd import Variable
+from utils.file_manager import *
 
+import myModel
 from model import *
 # from dataset2 import *
 from dataset import *
@@ -29,20 +31,15 @@ except:
     import pdb as ipdb
 
 parser = argparse.ArgumentParser()  # 创建解析器对象 可以添加参数
-
-# 为了找到训练模型参数地址，要与train.py中dataset_name参数一致
-parser.add_argument('--dataset_name', type=str, default="test", help='name of the dataset')
+# 为了找到训练模型参数地址，要与train.py中model_name参数一致
+parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
 opt = parser.parse_args()
-print(opt)
+my_opt = test_opt(opt)
 
-root_path = os.getcwd()
-data_path = root_path+"/fontdata/"
-
-os.makedirs('test_images/%s' % opt.dataset_name, exist_ok=True)  # 过程图片
 
 cuda = True if torch.cuda.is_available() else False
-
-generator = GeneratorUNet()
+data_path = os.getcwd()+"/fontdata/"
+generator = myModel.AutoEncoder()
 
 if cuda:
     generator = generator.cuda()
@@ -55,12 +52,15 @@ val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mod
 
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-model_dict = root_path + '/saved_models/%s/' % opt.dataset_name
+model_dict = my_opt.get_model_root()
 filename = os.listdir(model_dict)
+for name in filename:
+    if 'generator' not in name:
+        filename.remove(name)
 
 for j in range(len(filename)):
     if os.path.splitext(filename[j])[1] == '.pth':
-        generator.load_state_dict(torch.load('saved_models/%s/%s' % (opt.dataset_name, filename[j])))
+        generator.load_state_dict(torch.load('%s/%s' % (model_dict, filename[j])))
         generator.eval()
         for i, batch in enumerate(val_dataloader):
             print(i)
@@ -68,6 +68,6 @@ for j in range(len(filename)):
             real_B = Variable(batch['A'].type(Tensor))
             fake_B = generator(real_A)
             # 图片存放处
-            save_image(fake_B, 'test_images/%s/%s.png' % (opt.dataset_name, (filename[j] + str(i) + '_' + str(i))),
-                       nrow=10, normalize=True)
-            save_image(real_B, 'test_images/%s/%s.png' % (opt.dataset_name, str(i)), nrow=10, normalize=True)
+            save_image(fake_B, my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
+                       normalize=True)
+            save_image(real_B, my_opt.get_img_root()+'/%s.png' % str(i), nrow=10, normalize=True)
