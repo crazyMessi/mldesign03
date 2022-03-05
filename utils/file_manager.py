@@ -4,7 +4,7 @@
 import os
 import tkinter as tk
 from tkinter import filedialog
-from utils.tools import valid_model_name
+from utils.model_controller import valid_model_name
 
 
 class Train_opt:
@@ -20,6 +20,9 @@ class Train_opt:
 
     def __getitem__(self, item):
         return self.opt.__getitem__(item)
+
+    def __setitem__(self, key, value):
+        self.opt.__setitem__(key, value)
 
     # 获得本次输出的根目录
     def get_root(self):
@@ -95,6 +98,9 @@ class Test_opt:
 
     def __getitem__(self, item):
         return self.opt.__getitem__(item)
+
+    def __setitem__(self, key, value):
+        self.opt.__setitem__(key, value)
 
     def get_root(self):
         return self.test_out

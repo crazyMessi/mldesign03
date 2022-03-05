@@ -1,7 +1,7 @@
 import myModel
 from myModel import *
 
-valid_model_name = ['GAN', 'AutoEncoder', 'pic2pic']
+valid_model_name = ['GAN', 'AutoEncoderGen', 'pic2pic']
 
 
 # 为网络参数赋正态分布的初值
@@ -14,13 +14,14 @@ def weights_init_normal(m):
         torch.nn.init.constant_(m.bias.data, 0.0)
 
 
+# 根据opt选取模型
 def model_selector(opt):
     if isinstance(opt, dict):
         model_name = opt['model_name']
     else:
         model_name = opt
 
-    generator_list = {'UNet': GeneratorUNet(), 'AutoEncoder': AutoEncoder(), 'GAN': GeneratorUNet(if_crop=False)}
+    generator_list = {'UNet': GeneratorUNet(), 'GAN': GeneratorUNet(if_crop=False), 'AutoEncoder': AutoEncoder()}
     discriminator_list = {'Discriminator': Discriminator()}
 
     while model_name not in valid_model_name:
@@ -28,19 +29,17 @@ def model_selector(opt):
         print(valid_model_name)
         model_name = input()
 
-    if model_name == 'pic2pic':
-        generator = generator_list['UNet']
-        discriminator = discriminator_list['Discriminator']
-        model = myModel.GAN(opt, generator=generator, discriminator=discriminator)
-
-    if model_name == 'AutoEncoder':
-        generator = generator_list['AutoEncoder']
-        discriminator = discriminator_list['Discriminator']
-        model = myModel.GAN(opt, generator=generator, discriminator=discriminator)
+    if model_name == 'AutoEncoderGen':
+        model = AutoEncoderGen(train_opt=opt, generator=generator_list['AutoEncoder'])
 
     if model_name == 'GAN':
         generator = generator_list['GAN']
         discriminator = discriminator_list['Discriminator']
-        model = myModel.GAN(opt, generator=generator, discriminator=discriminator)
+        model = GAN(train_opt=opt, generator=generator, discriminator=discriminator)
+
+    if model_name == 'pic2pic':
+        generator = generator_list['UNet']
+        discriminator = discriminator_list['Discriminator']
+        model = GAN(train_opt=opt, generator=generator, discriminator=discriminator)
 
     return model

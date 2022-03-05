@@ -6,7 +6,7 @@ from utils.file_manager import *
 from dataset import *
 import torch
 
-from utils.tools import model_selector
+from utils.model_controller import model_selector
 
 try:
     import ipdb

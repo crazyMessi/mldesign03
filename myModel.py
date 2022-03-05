@@ -1,35 +1,13 @@
-import torch
 from torch import nn
+from utils.my_optimizer import *
 
 generator_loss_fun = torch.nn.L1Loss()
 discriminator_loss_fun = torch.nn.MSELoss()
 
 
-# class AutoEncoder(nn.Module):
-#     def __init__(self, in_channel=3, h=64, w=64, down_to=1, max_channel=512, first_out=64):
-#         super(AutoEncoder, self).__init__()
-#         self.Down = nn.ModuleList()
-#         self.Up = nn.ModuleList()
-#         out = first_out
-#         dropout = 0
-#         while h > down_to:
-#             self.Down.append(UNetDown(in_channel, out, dropout=dropout, normalize=bool(h-2)))
-#             self.Up.append(UNetUp(out, in_channel, dropout=dropout, normalize=bool(h-2)))
-#             in_channel = out
-#             h /= 2
-#             if out < max_channel:
-#                 out *= 2
-#             else:
-#                 dropout = 0.5
-#
-#     def forward(self, x):
-#         times = len(self.Down)
-#         for i in range(times):
-#             x = self.Down[i](x)
-#         for i in range(times):
-#             x = self.Up[times-i-1](x)
-#
-#         return x
+# ===================================
+#              网络单元
+# ===================================
 class Encoder(nn.Module):
     def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4):
 
@@ -100,6 +78,9 @@ class UNetUp(nn.Module):
         return x
 
 
+# ===================================
+#              子模型
+# ===================================
 class GeneratorUNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, if_crop=True, loss_fun=generator_loss_fun):
         super(GeneratorUNet, self).__init__()
@@ -221,16 +202,23 @@ class AutoEncoder(nn.Module):
         return self.loss_fun(x, y)
 
 
+# ===================================
+#              顶级模型
+# ===================================
 class GAN(nn.Module):
     def __init__(self, train_opt=None, generator=GeneratorUNet(), discriminator=Discriminator()):
         super(GAN, self).__init__()
         self.generator = generator
         self.discriminator = discriminator
         if isinstance(train_opt, dict):
-            self.optimizer_G = torch.optim.Adam(self.generator.parameters(), lr=train_opt['lrG'],
-                                                betas=(train_opt['b1'], train_opt['b2']))
-            self.optimizer_D = torch.optim.Adam(self.discriminator.parameters(), lr=train_opt['lrD'],
-                                                betas=(train_opt['b1'], train_opt['b2']))
+            self.optimizer_G = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrG'],
+                                              betas=(train_opt['b1'], train_opt['b2']),
+                                              freq=train_opt['lrG_d'] * train_opt['dataloader_length'])
+
+            self.optimizer_D = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrD'],
+                                              betas=(train_opt['b1'], train_opt['b2']),
+                                              freq=train_opt['lrD_d'] * train_opt['dataloader_length'])
+            self.train_opt = train_opt
 
     def forward(self, source, target):
         generate = self.generator(source)
@@ -244,19 +232,19 @@ class GAN(nn.Module):
         valid = invalid + 1
         # 计算生成模型误差
         loss_pixel = self.generator.loss(generate, target)
-        loss_GAN = self.discriminator.loss(source_generate, valid)
-        loss_G = loss_GAN + 10 * loss_pixel
+        loss_sVg = self.discriminator.loss(source_generate, valid)
+        loss_G = loss_sVg + self.train_opt['weight_pic'] * loss_pixel
         # 分辨源图像和目标图像
         loss_real = self.discriminator.loss(source_target, valid)
         # 分辨源图像和生成图像
         loss_fake = self.discriminator.loss(source_generate2, invalid)
         # Total loss
         loss_D = 0.5 * (loss_real + loss_fake)
-        return loss_G, loss_D, loss_GAN, loss_pixel
+        return loss_G, loss_D, loss_sVg, loss_pixel
 
     def step(self, source, target):
         generate, source_generate, source_target, source_generate2 = self(source, target)
-        loss_G, loss_D, loss_GAN, loss_pixel = self.loss(generate, target, source_generate,
+        loss_G, loss_D, loss_sVg, loss_pixel = self.loss(generate, target, source_generate,
                                                          source_target, source_generate2)
         self.optimizer_G.zero_grad()
         loss_G.backward()
@@ -265,4 +253,33 @@ class GAN(nn.Module):
         self.optimizer_D.zero_grad()
         loss_D.backward()
         self.optimizer_D.step()
-        return loss_G, loss_D, loss_GAN, loss_pixel
+        loss_dic = {'loss_G': loss_G.item(), 'loss_D': loss_D.item(), 'loss_pixel': loss_pixel.item(),
+                    'loss_sVg': loss_sVg.item()}
+        return loss_dic
+
+
+# 基于AutoEncoder的图片生成器
+class AutoEncoderGen(nn.Module):
+    def __init__(self, train_opt=None, generator=AutoEncoder()):
+        super(AutoEncoderGen, self).__init__()
+        self.generator = generator
+        if isinstance(train_opt, dict):
+            self.optimizer_G = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrG'],
+                                              betas=(train_opt['b1'], train_opt['b2']),
+                                              freq=train_opt['lrG_d'] * train_opt['dataloader_length'])
+
+    def loss(self, x, y):
+        return self.generator.loss_fun(x, y)
+
+    def forward(self, x):
+        return self.generator(x)
+
+    # 只有作为顶级模型时该方法有效合法
+    def step(self, x, y):
+        generate = self(x)
+        loss_pixel = self.loss(y, generate) * 10
+        self.optimizer_G.zero_grad()
+        loss_pixel.backward()
+        self.optimizer_G.step()
+        loss_dic = {'loss_pixel': loss_pixel.item()}
+        return loss_dic
