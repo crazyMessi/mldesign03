@@ -72,6 +72,7 @@ val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mod
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
+
 model = model_selector(train_opt.opt)
 # 为网络参数赋初值
 model.apply(weights_init_normal)
@@ -112,7 +113,7 @@ for epoch in range(opt.epoch, opt.ep):
 
         batches_done = epoch * len(dataloader) + i
         # If at sample interval save image
-        if batches_done % opt.sample_interval == 0:
+        if int(batches_done*train_opt['bs']/8) % int(train_opt['sample_interval']) == 0:
             sample_images(batches_done)
         # 打印进度条
         pro.update(i + epoch * bs_count)
