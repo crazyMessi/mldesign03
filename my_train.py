@@ -46,7 +46,7 @@ parser.add_argument('--checkpoint_interval', type=int, default=20, help='interva
 opt = parser.parse_args()
 if_fitlog = True
 
-data_path = os.getcwd() + "/fontdata/"
+data_path = 'fontdata'
 cuda = True if torch.cuda.is_available() else False
 test = True
 
