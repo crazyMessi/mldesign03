@@ -115,8 +115,13 @@ class Test_opt:
         return self.mode_dir
 
     def mk_use_dirs(self):
-        print('创建 '+self.get_img_root())
-        print('创建 '+self.get_log_root())
+        print('创建 ' + self.get_img_root())
+        print('创建 ' + self.get_log_root())
         os.makedirs(self.get_log_root(), exist_ok=True)
         os.makedirs(self.get_img_root(), exist_ok=True)
 
+
+def askopenfilename():
+    root = tk.Tk()
+    root.withdraw()
+    return filedialog.askopenfilenames()

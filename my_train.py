@@ -1,4 +1,6 @@
 import argparse
+from tkinter import filedialog
+
 import fitlog
 import io
 
@@ -72,10 +74,20 @@ val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mod
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-
 model = model_selector(train_opt.opt)
-# 为网络参数赋初值
-model.apply(weights_init_normal)
+start_rp = train_opt['epoch']
+if train_opt['epoch'] > 0:
+    # model_dict = train_opt.get_model_root()
+    # filename = os.listdir(model_dict)
+    # for name in filename:
+    #     if name.find(str(start_rp)) < 0:
+    #         filename.remove(name)
+    # model.load_state_dict(torch.load('%s/%s' % (model_dict, filename[0])))
+    model_root = fm.askopenfilename()
+    model.load_state_dict(torch.load(model_root))
+else:
+    # 为网络参数赋初值
+    model.apply(weights_init_normal)
 if cuda:
     model.cuda()
 
@@ -110,7 +122,6 @@ for epoch in range(opt.epoch, opt.ep):
         source = batch['B'].type(Tensor)
         target = batch['A'].type(Tensor)
         loss_dic = model.step(source, target)
-
         batches_done = epoch * len(dataloader) + i
         # If at sample interval save image
         if int(batches_done*train_opt['bs']/8) % int(train_opt['sample_interval']) == 0:
