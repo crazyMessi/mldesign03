@@ -1,0 +1,24 @@
+# 只保留.py文件
+# 忽略所有文件
+*
+# 不忽略目录
+!*/
+!.gitignore
+!*.py
+!*.md
+.fitlog
+.fitconfig
+logs
+!*.npy
+
+.fitlog
+.fitconfig
+logs
+
+.fitlog
+.fitconfig
+logs
+
+.fitlog
+.fitconfig
+logs

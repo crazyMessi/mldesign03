@@ -1,39 +1,18 @@
 import argparse
 import fitlog
 import io
+# imports pytorch
+import torch
+from torch._C import device
+# imports the torch_xla package
+import torch_xla
+import torch_xla.core.xla_model as xm# Creates a random tensor on xla:1 (a Cloud TPU core)
+dev = xm.xla_device()
 
 from torchvision.utils import save_image
 
 from torch.utils.data import DataLoader
-
-import numpy as np
-import torch
-
-from torch.utils.data import Dataset
-import torchvision.transforms as transforms
-
-
-class ImageDataset(Dataset):
-    def __init__(self, root, transforms_=None, mode='train'):
-        self.transform = transforms.Compose(transforms_)
-        # ipdb.set_trace()
-        rootPath = root + '/{}'.format(mode)
-        filename = os.listdir(rootPath)
-        path = rootPath + '/' + filename[0]
-
-        self.imgs = np.load(path)
-
-    def __getitem__(self, index):
-        img_A_a = self.imgs[index][:, :64, :]
-        img_B_b = self.imgs[index][:, 64:, :]
-
-        img_A = self.transform(img_A_a.astype(np.uint8))  # 京黑
-        img_B = self.transform(img_B_b.astype(np.uint8))  # 黑体
-
-        return {'A': img_A, 'B': img_B}
-
-    def __len__(self):
-        return len(self.imgs)
+from dataset import *
 
 
 class Adam_Optimizer:
@@ -50,7 +29,8 @@ class Adam_Optimizer:
             self.lr *= 0.5
             self.optimizer.param_groups[0]['lr'] = self.lr
             print(self.lr)
-        self.optimizer.step()
+        xm.optimizer_step(self.optimizer)
+        xm.mark_step()
         self.times += 1
 
     def zero_grad(self):
@@ -346,10 +326,7 @@ class AutoEncoderGen(nn.Module):
 import os
 import tkinter as tk
 from tkinter import filedialog
-
 valid_model_name = ['GAN', 'AutoEncoderGen', 'pic2pic']
-
-
 class Train_opt:
     def __init__(self, opt, root='/output'):
         super(Train_opt, self).__init__()
@@ -458,8 +435,8 @@ class Test_opt:
         return self.mode_dir
 
     def mk_use_dirs(self):
-        print('创建 ' + self.get_img_root())
-        print('创建 ' + self.get_log_root())
+        print('创建 '+self.get_img_root())
+        print('创建 '+self.get_log_root())
         os.makedirs(self.get_log_root(), exist_ok=True)
         os.makedirs(self.get_img_root(), exist_ok=True)
 
@@ -507,6 +484,9 @@ def model_selector(opt):
 
     return model
 
+
+import myModel
+from myModel import *
 
 valid_model_name = ['GAN', 'AutoEncoderGen', 'pic2pic']
 
@@ -597,7 +577,7 @@ train_opt = Train_opt(opt)
 model_name = train_opt['model_name']
 
 if if_fitlog:
-    fitlog.set_log_dir('logs/')  # 设置log文件夹为'logs/', fitlog在每次运行的时候会默认以时间戳的方式在里面生成新的log
+    fitlog.set_log_dir('../logs/')  # 设置log文件夹为'logs/', fitlog在每次运行的时候会默认以时间戳的方式在里面生成新的log
     fitlog.add_hyper(train_opt.get_fitlog_hyper())
 
 transforms_ = [transforms.ToTensor(),
@@ -611,27 +591,21 @@ train_opt['dataloader_length'] = len(dataloader)
 val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='train'),
                             batch_size=20, shuffle=False, num_workers=0)
 
-cuda = True if torch.cuda.is_available() else False
 # Tensor type
-Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
-if cuda:
-    dev = torch.cuda.device
-
+Tensor = torch.FloatTensor
 
 model = model_selector(train_opt.opt)
 # 为网络参数赋初值
 model.apply(weights_init_normal)
-
-
 if TPU:
-    model.cuda()
+    model.to(dev)
 
 
 def sample_images(batches_done):
     """Saves a generated sample from the validation set"""
     imgs = next(iter(val_dataloader))
-    real_A = imgs['B'].type(Tensor)
-    real_B = imgs['A'].type(Tensor)
+    real_A = imgs['B'].to(dev)
+    real_B = imgs['A'].to(dev)
     fake_B = model.generator(real_A)
     img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
     # ipdb.set_trace()
@@ -654,13 +628,13 @@ for epoch in range(opt.epoch, opt.ep):
     for i, batch in enumerate(dataloader):
 
         # Model inputs
-        source = batch['B'].type(Tensor)
-        target = batch['A'].type(Tensor)
+        source = batch['B'].to(dev)
+        target = batch['A'].to(dev)
         loss_dic = model.step(source, target)
 
         batches_done = epoch * len(dataloader) + i
         # If at sample interval save image
-        if int(batches_done * train_opt['bs'] / 8) % int(train_opt['sample_interval']) == 0:
+        if int(batches_done*train_opt['bs']/8) % int(train_opt['sample_interval']) == 0:
             sample_images(batches_done)
         # 打印进度条
         pro.update(i + epoch * bs_count)

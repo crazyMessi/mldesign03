@@ -37,15 +37,15 @@ class Train_opt:
 
     # 获得log存放路径
     def get_log_root(self):
-        return self.get_root() + '/log/'
+        return self.get_root() + '/log'
 
     # 获得model存放路径
     def get_model_root(self):
-        return self.get_root() + '/model/'
+        return self.get_root() + '/model'
 
     # 获得img存放路径
     def get_img_root(self):
-        return self.get_root() + '/img/'
+        return self.get_root() + '/img'
 
     # 返回用于命名文件夹的超参
     def get_key_hyper(self):
@@ -79,7 +79,10 @@ class Test_opt:
 
         try:
             model_dir = self.opt['model_dir']
-            had_set = model_dir.split('/')[-4] not in valid_model_name
+            had_set = False
+            for name in valid_model_name:
+                if model_dir.find(name) >= 0 & model_dir.find('model') >= 0:
+                    had_set = True
         except (KeyError, IndexError):
             print("未指定合法目录,请手动选择待测试模型位置")
             had_set = False
