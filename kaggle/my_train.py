@@ -1,4 +1,6 @@
 import argparse
+from tkinter import filedialog
+
 import fitlog
 import io
 
@@ -9,6 +11,7 @@ from dataset import *
 import utils.file_manager as fm
 
 from utils.model_controller import *
+from PIL import Image
 
 try:
     import ipdb
@@ -42,20 +45,25 @@ parser.add_argument('--channels', type=int, default=3, help='number of image cha
 parser.add_argument('--sample_interval', type=int, default=500,
                     help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=20, help='interval between model checkpoints')
+parser.add_argument('--data_path', type=str, default='fontdata', help='数据集位置')
 
 opt = parser.parse_args()
 if_fitlog = True
 
-data_path = 'fontdata'
 cuda = True if torch.cuda.is_available() else False
 test = True
 
 train_opt = fm.Train_opt(opt)
+data_path = train_opt['data_path']
 # Initialize generator and discriminator
 model_name = train_opt['model_name']
 
 if if_fitlog:
-    fitlog.set_log_dir('logs/')  # 设置log文件夹为'logs/', fitlog在每次运行的时候会默认以时间戳的方式在里面生成新的log
+    log_name = 'logs/'
+    # for _, v in train_opt.get_fitlog_hyper().items():
+    #     log_name = log_name + str(v) + '_'
+    os.makedirs(log_name, exist_ok=True)
+    fitlog.set_log_dir(log_name)  # 设置log文件夹为'logs/', fitlog在每次运行的时候会默认以时间戳的方式在里面生成新的log
     fitlog.add_hyper(train_opt.get_fitlog_hyper())
 
 transforms_ = [transforms.ToTensor(),
@@ -72,10 +80,16 @@ val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mod
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
-
 model = model_selector(train_opt.opt)
-# 为网络参数赋初值
-model.apply(weights_init_normal)
+start_rp = train_opt['epoch']
+
+# 目前只支持手动选择要开始的模型
+if train_opt['epoch'] > 0:
+    model_root = fm.askopenfilename()
+    model.load_state_dict(torch.load(model_root))
+else:
+    # 为网络参数赋初值
+    model.apply(weights_init_normal)
 if cuda:
     model.cuda()
 
@@ -104,16 +118,16 @@ pro.start(train_opt['ep'] * bs_count)
 
 for epoch in range(opt.epoch, opt.ep):
 
+    loss_dic = []
     for i, batch in enumerate(dataloader):
 
         # Model inputs
         source = batch['B'].type(Tensor)
         target = batch['A'].type(Tensor)
-        loss_dic = model.step(source, target)
-
+        loss_dic.append(model.step(source, target))
         batches_done = epoch * len(dataloader) + i
         # If at sample interval save image
-        if int(batches_done*train_opt['bs']/8) % int(train_opt['sample_interval']) == 0:
+        if int(batches_done * train_opt['bs'] / 8) % int(train_opt['sample_interval']) == 0:
             sample_images(batches_done)
         # 打印进度条
         pro.update(i + epoch * bs_count)
@@ -121,26 +135,24 @@ for epoch in range(opt.epoch, opt.ep):
     avg_loss = 0
     tloss_res[epoch] = avg_loss
 
+    # 计算一个epoch中的指标均值
+    result = {}
+    for value in loss_dic:
+        for key, val in value.items():
+            result.setdefault(key, []).append(val)
+
+    result = {i: sum(result[i]) / len(result[i]) for i in result}
     if if_fitlog:
-        fitlog.add_metric(loss_dic, epoch)
-        fitlog.add_best_metric(loss_dic)
+        fitlog.add_metric(result, epoch)
+        fitlog.add_best_metric(result)
 
     # 每50轮保存模型参数
     if epoch > 0 and (epoch + 1) % 50 == 0:
         torch.save(model.state_dict(), '%s/%s_%d.pth' % (train_opt.get_model_root(), model_name, epoch))
-        # torch.save(discriminator.state_dict(),
-        #            train_opt.get_model_root() + '/discriminator_%d.pth' % epoch)
-        # torch.save(model.state_dict())
-    # 保存loss最小时的模型参数
-    # if tloss_res[epoch] < min_tloss:
-    #     min_tloss = tloss_res[epoch]
-    #     tloss_res['min'] = tloss_res[epoch]
-    #     tloss_res['minepoch'] = epoch
-    #     torch.save(model.state_dict(), '%s/%s_min.pth' % (train_opt.get_model_root(), model_name))
 
 with io.open(train_opt.get_log_root() + 'list_loss.txt', 'a', encoding='utf-8') as file:
     file.write('tloss_res: {} \n'.format(tloss_res))
 pro.finish()
 if test:
-    os.system('python test.py --model_dir \"%s\" --model_name %s' % (train_opt.get_model_root(), model_name))
+    os.system('python test.py --model_dir \"%s\" --model_name %s --data_path \"%s\"' % (train_opt.get_model_root(), model_name, data_path))
 

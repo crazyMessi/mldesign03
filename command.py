@@ -1,14 +1,9 @@
 import os
 
-ep = 100
-lrG = 0.0001
-bs = 16
+ep = 1
+lrGs = [0.001, 0.0001, 0.00001]
+bss = [8, 16, 32]
 
-# 初始化fitlog 只有在第一次运行的时候用
-os.system('fitlog init')
-
-os.system('python my_train.py --model_name AutoEncoderGen --ep %d --lrG %f --bs %d' % (ep, lrG, bs))
-os.system('python my_train.py --model_name GAN --ep %d --lrG %f --bs %d' % (ep, lrG, bs))
-os.system('python my_train.py --model_name pic2pic --ep %d --lrG %f --bs %d' % (ep, lrG, bs))
-
-os.system('fitlog log logs')
+for lrG in lrGs:
+    for bs in bss:
+        os.system('python my_train.py --model_name AutoEncoderGen --ep %d --lrG %f --bs %d' % (ep, lrG, bs))

@@ -1,103 +1,126 @@
 [TOC]
 
-## Font_pix_fast
+## 注意事项
 
-### 数据批处理
+**网络层可视化**
 
-原数据为400个大小为3\*128\*64的图片，图片左侧为京黑，右侧为黑体。
+目前已经有很多网络层可视化的工具了 大伙可以都试试看
 
-**ImageDataset**
+[简易版教程](https://zhuanlan.zhihu.com/p/220403674)
 
-将每批图片变成一个字典，其中‘A’表示京黑，‘B’表示黑体
-
-
-
-### 损失函数
-
-**lose function**
-
-* `criterion_GAN`: 均方误差函数，用于计算判别器表现与正确值的均方误差
-* `criterion_pixelwise`: L1误差。用于计算两张图片的L1误差
-
-<font color='cornflowerblue'>我们要不要更改lose function？</font>
+[或者使用tensorboard](https://zhuanlan.zhihu.com/p/58961505)
 
 
 
-**loss的算法**
+**数据集合**
 
-* 生成器loss
-  $$
-  loss_G = loss_{GAN} + \lambda_{pixel} * loss_{pixel}
-  $$
-  
-
-  * $loss_{pixel}$：生成器生成的图片与新风格的误差
-  * $loss_{GAN}$：判别器是否将生成图认成了原图。如果全为1则$loss_{GAN}$为
-
-  * 其中$\lambda_{pixel}$为超参。
+>描述一下数据集概况
+>
+>或许可以尝试缩小数据集
 
 
 
-* 判别器loss
-  $$
-  loss_D = 0.5 * (loss_{real} + loss_{fake})
-  $$
-  
+**代码注释**
 
-  * $loss_{real}$: 判别器是否认为原图和新风格图为同一张图
-  * $loss_{fake}$:判别器是否将生成图认成了原图。不同于$loss_{GAN}$，若全为0则$loss_{fake}$为0
+读代码的时候注意多写注释 尤其是关键函数和一些比较难理解的函数
 
 
 
+**调参/网络层**
 
+不同参数结果对比 注意每次对比时需要有逻辑,比如为什么要改这些参数,改完以后可以印证什么or得出什么结论
 
-### Options
+除了调参 还可以尝试调整关键网络层
 
-使用argparse。
-
-
-
-### GeneratorUNet
-
-生成器是一个表示模型，通过正反编码完成对图片的表征。在这里被当作了一个生成器，其学习的目标不再是尽可能保留原有特征，而是与新的风格尽可能相似
+比如验证dropout
 
 
 
+**结果分析**
 
+<font color='red'>重点回答任务书里面的几个问题</font>
 
-### Discriminator
-
-判别器，输入两张图片，判断这两张图片是否是同一张图片。在本例中将生成器生成的图片与原图片进行比对，判断是否是同一张图片
-
-
-
-```python
-Discriminator(
-  (model): Sequential(
-    (0): Conv2d(6, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1))
-    (1): LeakyReLU(negative_slope=0.2, inplace=True)
-    (2): Conv2d(64, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1))
-    (3): InstanceNorm2d(128, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
-    (4): LeakyReLU(negative_slope=0.2, inplace=True)
-    (5): Conv2d(128, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1))
-    (6): InstanceNorm2d(256, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
-    (7): LeakyReLU(negative_slope=0.2, inplace=True)
-    (8): Conv2d(256, 512, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1))
-    (9): InstanceNorm2d(512, eps=1e-05, momentum=0.1, affine=False, track_running_stats=False)
-    (10): LeakyReLU(negative_slope=0.2, inplace=True)
-    (11): ZeroPad2d(padding=(1, 0, 1, 0), value=0.0)
-    (12): Conv2d(512, 1, kernel_size=(4, 4), stride=(1, 1), padding=(1, 1), bias=False)
-  )
-)
-```
+* 分析并列出影响各个模型实验结果的<font color='red'>主要原因</font>
+* 列出不同算法的优劣
+  * FLOPs与时间复杂度
+  * 对超参的敏感程度
+  * 对数据量的需求
 
 
 
+## AutoEncoder
+
+### 模型架构
+
+>* 网络层设计
+>* loss计算
+>* 相比之前的模型有什么改进
+
+### 原理分析
+
+>查相关资料
+
+### 运行结果
+
+>* 训练情况
+>  * loss下降情况
+>
+>* 测试集表现
+
+
+
+## GAN
+
+### 模型架构
+
+>尝试可视化一下整体架构(这里不是指网络层 而是两个模型相互的关系)
+
+**AutoEncoder**
+
+>基于AutoEncoder 但loss函数不一样 (为什么要这么改)
+
+**Discriminator**
+
+>loss计算
+>
+>是怎么想到loss的
+
+### 原理分析
+
+> 为什么有用(尝试从理论的角度)
+
+### 运行结果
+
+>对比AutoEncoder
+
+
+
+## Pix2pix
+
+### 模型架构
+
+>skip connection是怎么做的
+
+### 原理分析
+
+>为什么要skip connection
+
+### 运行结果
 
 
 
 
 
+### 尝试
+
+* 对结果进行适当的低级图像处理，比如一些滤波操作
+* 把图片通道数量改成1。因为我们**主要关注字体变形，不关注颜色**。
+* 在原有模型上再加一个unet（和原来模型不一起训练），因为目前的pix2pix形状已经比较形似了，可以尝试单独训练一个unet让成像更清晰的模型。即**一个模型学习形态的变化，另一个模型对结果进行降噪处理**
+* 修改网络层的设置。
+  * 当前的训练loss似乎还有降低的空间，或许可以让网络层更深一点? 
+  * **在网络尾部增加一个softmax**。因为我们看了一下经过生成器前后的图片的灰度直方图，发现映射后的图片的直方图多了很多”杂灰度“，即多了一些半黑不白的地方，而这类灰度是原图片以及目标图片所没有的
+* 我们查阅了一下相关资料，很多人说Unet的skip connection的作用主要是在上采样时还原图片的一些空间特征。据了解，resnet中也有一个skip connection，用于缓解网络过深导致的优化困难。这两个skip connection之间存在联系吗？我们的Unet有12层，**是否也需要引进残差学习**?
+* 使用cycleGAN
 
 
 
