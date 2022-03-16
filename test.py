@@ -1,4 +1,6 @@
 import argparse
+import os
+
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
@@ -39,7 +41,8 @@ filename = os.listdir(model_dict)
 
 for j in range(len(filename)):
     if os.path.splitext(filename[j])[1] == '.pth':
-        model.load_state_dict(torch.load('%s/%s' % (model_dict, filename[j])))
+        model_location = '%s/%s' % (model_dict, filename[j])
+        model.load_state_dict(torch.load(model_location))
         model.eval()
         for i, batch in enumerate(val_dataloader):
             print(i)
@@ -50,3 +53,4 @@ for j in range(len(filename)):
             save_image(fake_B, my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
                        normalize=True)
             save_image(real_B, my_opt.get_img_root()+'/%s.png' % str(i), nrow=10, normalize=True)
+    os.remove(model_location)
