@@ -1,4 +1,5 @@
 import argparse
+import sys
 from tkinter import filedialog
 
 import fitlog
@@ -45,6 +46,7 @@ parser.add_argument('--channels', type=int, default=3, help='number of image cha
 parser.add_argument('--sample_interval', type=int, default=500,
                     help='interval between sampling of images from generators')
 parser.add_argument('--checkpoint_interval', type=int, default=20, help='interval between model checkpoints')
+# 有的地方(比如kaggle)目录比较奇怪
 parser.add_argument('--data_path', type=str, default='fontdata', help='数据集位置')
 
 opt = parser.parse_args()
@@ -154,4 +156,6 @@ with io.open(train_opt.get_log_root() + 'list_loss.txt', 'a', encoding='utf-8') 
     file.write('tloss_res: {} \n'.format(tloss_res))
 pro.finish()
 if test:
-    os.system('python test.py --model_dir \"%s\" --model_name %s --data_path \"%s\"' % (train_opt.get_model_root(), model_name, data_path))
+    test_path = sys.path[0]+'/test.py'
+    os.system('python \"%s\" --model_dir \"%s\" --model_name %s --data_path \"%s\"'
+              % (test_path, train_opt.get_model_root(), model_name, data_path))
