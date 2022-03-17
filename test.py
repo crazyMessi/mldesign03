@@ -10,16 +10,11 @@ from dataset import *
 from utils.file_manager import *
 from utils.model_controller import model_selector
 
-try:
-    import ipdb
-except:
-    import pdb as ipdb
-
 parser = argparse.ArgumentParser()  # 创建解析器对象 可以添加参数
 # 为了找到训练模型参数地址，要与train.py中model_name参数一致
 parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
 parser.add_argument('--model_name', type=str, default="test", help='模型名')
-parser.add_argument('--if_remove', type=str, default=0, help='是否需要移除模型')
+parser.add_argument('--if_remove', type=str, default=1, help='是否需要移除模型')
 parser.add_argument('--data_path', type=str, default='fontdata', help='数据集位置')
 opt = parser.parse_args()
 my_opt = Test_opt(opt)
