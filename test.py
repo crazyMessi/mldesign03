@@ -43,15 +43,14 @@ for j in range(len(filename)):
         model.load_state_dict(torch.load(model_location))
         model.eval()
         for i, batch in enumerate(val_dataloader):
-            print(i)
-            real_A = Variable(batch['B'].type(Tensor))
-            real_B = Variable(batch['A'].type(Tensor))
-            fake_B = model.generator(real_A)
+            source = Variable(batch['B'].type(Tensor))
+            target = Variable(batch['A'].type(Tensor))
+            fake_B = model.generator(source)
             # 图片存放处
             save_image(fake_B, my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
                        normalize=True)
-            save_image(real_B, my_opt.get_img_root()+'/%s.png' % str(i), nrow=10, normalize=True)
-            loss_test[j][i] = (myModel.generator_loss_fun(real_B, fake_B)).item()
+            save_image(target, my_opt.get_img_root() + '/%s.png' % str(i), nrow=10, normalize=True)
+            loss_test[j][i] = (myModel.generator_loss_fun(fake_B, target)).item()
     if my_opt['if_remove'] > 0:
         os.remove(model_location)
 
@@ -61,3 +60,4 @@ for i in range(0, len(loss_test), step):
     ax.plot(loss_test[i, :], label=filename[i])
 ax.legend()
 plt.savefig(my_opt.get_log_root()+'/loss.png')
+print("测试完成")

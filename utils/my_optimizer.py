@@ -14,7 +14,6 @@ class Adam_Optimizer:
         if self.times % self.freq == 0 and self.times > 0:
             self.lr *= 0.5
             self.optimizer.param_groups[0]['lr'] = self.lr
-            print(self.lr)
         self.optimizer.step()
         self.times += 1
 

@@ -1,6 +1,6 @@
 from myModel import *
 
-valid_model_name = ['GAN', 'AutoEncoderGen', 'pic2pic']
+valid_model_name = ['GAN', 'AutoEncoderGen', 'pic2pic', 'AutoEncoderGen_no_dropout']
 
 
 # 为网络参数赋正态分布的初值
@@ -30,7 +30,8 @@ def model_selector(opt):
     else:
         model_name = opt
 
-    generator_list = {'UNet': GeneratorUNet(), 'GAN': GeneratorUNet(if_crop=False), 'AutoEncoder': AutoEncoder()}
+    generator_list = {'UNet': GeneratorUNet(), 'GAN': GeneratorUNet(if_crop=False), 'AutoEncoder': AutoEncoder(), 
+                      'AutoEncoder_no_dropout': AutoEncoder(dropout_rate=0.0)}
     discriminator_list = {'Discriminator': Discriminator()}
 
     while model_name not in valid_model_name:
@@ -40,6 +41,9 @@ def model_selector(opt):
 
     if model_name == 'AutoEncoderGen':
         model = AutoEncoderGen(train_opt=opt, generator=generator_list['AutoEncoder'])
+
+    if model_name == 'AutoEncoderGen_no_dropout':
+        model = AutoEncoderGen(train_opt=opt, generator=generator_list['AutoEncoder_no_dropout'])
 
     if model_name == 'GAN':
         generator = generator_list['GAN']

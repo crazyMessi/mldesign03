@@ -8,41 +8,43 @@ discriminator_loss_fun = torch.nn.MSELoss()
 # ===================================
 #              网络单元
 # ===================================
-class Encoder(nn.Module):
-    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4):
-
-        super(Encoder, self).__init__()
-        layers = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=2, padding=1, bias=False)]
-        if normalize:
-            layers.append(nn.InstanceNorm2d(out_size))
-        layers.append(nn.LeakyReLU(0.2))
-        if dropout:
-            layers.append(nn.Dropout(dropout))
-        self.model = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.model(x)
 
 
-class Decoder(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0, normalize=True):
-        super(Decoder, self).__init__()
-        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1, bias=False)]
-        if normalize:
-            layers.append(nn.InstanceNorm2d(out_size))
-        layers.append(nn.ReLU(inplace=True))
-        if dropout:
-            layers.append(nn.Dropout(dropout))
-        self.model = nn.Sequential(*layers)
+# class UNetDown(nn.Module):
+#     def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4):
+#
+#         super(UNetDown, self).__init__()
+#         layers = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=2, padding=1, bias=False)]
+#         if normalize:
+#             layers.append(nn.InstanceNorm2d(out_size))
+#         layers.append(nn.LeakyReLU(0.2))
+#         if dropout:
+#             layers.append(nn.Dropout(dropout))
+#         self.model = nn.Sequential(*layers)
+#
+#     def forward(self, x):
+#         return self.model(x)
 
-    def forward(self, x):
-        x = self.model(x)
-        return x
+
+# class Decoder(nn.Module):
+#     def __init__(self, in_size, out_size, dropout=0.0, normalize=True):
+#         super(Decoder, self).__init__()
+#         layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1, bias=False)]
+#         if normalize:
+#             layers.append(nn.InstanceNorm2d(out_size))
+#         layers.append(nn.ReLU(inplace=True))
+#         if dropout:
+#             layers.append(nn.Dropout(dropout))
+#         self.model = nn.Sequential(*layers)
+#
+#     def forward(self, x):
+#         x = self.model(x)
+#         return x
 
 
 class UNetDown(nn.Module):
-    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4):
-
+    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4, if_res_block=False):
+        # Unet和AutoEncoder的下采样是一致的
         super(UNetDown, self).__init__()
         layers = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=2, padding=1, bias=False)]
         if normalize:
@@ -64,17 +66,13 @@ class UNetUp(nn.Module):
                   nn.ReLU(inplace=True)]
         if dropout:
             layers.append(nn.Dropout(dropout))
-
         self.model = nn.Sequential(*layers)
         self.if_crop = if_crop
 
     def forward(self, x, skip_input):
-        # ipdb.set_trace()
         x = self.model(x)
         if self.if_crop > 0:
             x = torch.cat((x, skip_input), 1)
-        else:
-            x = torch.cat((x, x), 1)
         return x
 
 
@@ -82,20 +80,26 @@ class UNetUp(nn.Module):
 #              子模型
 # ===================================
 class GeneratorUNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, if_crop=True, loss_fun=generator_loss_fun):
+    def __init__(self, in_channels=3, out_channels=3, loss_fun=generator_loss_fun, if_crop=True, dropout_rate=0.5):
         super(GeneratorUNet, self).__init__()
         self.down1 = UNetDown(in_channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
         self.down3 = UNetDown(128, 256)
-        self.down4 = UNetDown(256, 512, dropout=0.5)
-        self.down5 = UNetDown(512, 512, dropout=0.5)
-        self.down6 = UNetDown(512, 512, dropout=0.5, normalize=False)  # 不需要正规化了
+        self.down4 = UNetDown(256, 512, dropout=dropout_rate)
+        self.down5 = UNetDown(512, 512, dropout=dropout_rate)
+        self.down6 = UNetDown(512, 512, dropout=dropout_rate, normalize=False)  # 不需要正规化了
 
-        self.up1 = UNetUp(512, 512, dropout=0.5, if_crop=if_crop)
-        self.up2 = UNetUp(1024, 512, dropout=0.5, if_crop=if_crop)
-        self.up3 = UNetUp(1024, 256, if_crop=if_crop)
-        self.up4 = UNetUp(512, 128, if_crop=if_crop)
-        self.up5 = UNetUp(256, 64, if_crop=if_crop)
+        out_channels_rate = 1
+        if not if_crop:
+            # 如果不使用上采样 则通道数翻倍
+            # 曾经尝试直接复制一个 但loss存在差异
+            out_channels_rate = 2
+
+        self.up1 = UNetUp(512, 512*out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
+        self.up2 = UNetUp(1024, 512*out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
+        self.up3 = UNetUp(1024, 256*out_channels_rate, if_crop=if_crop)
+        self.up4 = UNetUp(512, 128*out_channels_rate, if_crop=if_crop)
+        self.up5 = UNetUp(256, 64*out_channels_rate, if_crop=if_crop)
 
         self.final = nn.Sequential(
             nn.Upsample(scale_factor=2),
@@ -158,45 +162,16 @@ class Discriminator(nn.Module):
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, loss_fun=generator_loss_fun):
+    def __init__(self, in_channels=3, out_channels=3, loss_fun=generator_loss_fun, dropout_rate=0.5):
         super(AutoEncoder, self).__init__()
-        self.down1 = Encoder(in_channels, 64, normalize=False)
-        self.down2 = Encoder(64, 128)
-        self.down3 = Encoder(128, 256)
-        self.down4 = Encoder(256, 512, dropout=0.5)
-        self.down5 = Encoder(512, 512, dropout=0.5)
-        self.down6 = Encoder(512, 512, dropout=0.5, normalize=False)  # 不需要正规化了
-
-        self.up1 = Decoder(512, 1024, dropout=0.5)
-        self.up2 = Decoder(1024, 1024, dropout=0.5)
-        self.up3 = Decoder(1024, 512)
-        self.up4 = Decoder(512, 256)
-        self.up5 = Decoder(256, 128)
-
-        self.final = nn.Sequential(
-            nn.Upsample(scale_factor=2),
-            nn.ZeroPad2d((1, 0, 1, 0)),
-            nn.Conv2d(128, out_channels, 4, padding=1),
-            nn.Tanh()
-        )
+        # AutoEncoder即不使用crop的Unet
+        self.model = GeneratorUNet(in_channels=in_channels, out_channels=out_channels, loss_fun=loss_fun, if_crop=False,
+                                   dropout_rate=dropout_rate)
         self.loss_fun = loss_fun
 
     def forward(self, x):
-        # 上采样
-        d1 = self.down1(x)  # x:[1, 3, 64, 64]  d1:[1, 64, 32, 32]
-        d2 = self.down2(d1)  # d2:[1,128,16,16]
-        d3 = self.down3(d2)  # d3:[1,256,8,8]
-        d4 = self.down4(d3)  # d4:[1,512,4,4]
-        d5 = self.down5(d4)  # d5:[1,512,2,2]
-        d6 = self.down6(d5)  # d6:[1,512,1,1]
-        # 下采样
-        u1 = self.up1(d6)  # u1:[1,1024,2,2]
-        u2 = self.up2(u1)  # u2:[1,1024,4,2]
-        u3 = self.up3(u2)  # u3:[1,1024,8,2]
-        u4 = self.up4(u3)  # u4:[1,1024,16,16]
-        u5 = self.up5(u4)  # u5:[1,512,32,32]
-        x = self.final(u5)
-        return x
+        y = self.model(x)
+        return y
 
     def loss(self, x, y):
         return self.loss_fun(x, y)
@@ -274,7 +249,6 @@ class AutoEncoderGen(nn.Module):
     def forward(self, x):
         return self.generator(x)
 
-    # 只有作为顶级模型时该方法有效合法
     def step(self, x, y):
         generate = self(x)
         loss_pixel = self.loss(y, generate) * 10

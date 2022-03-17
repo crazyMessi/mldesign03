@@ -79,6 +79,9 @@ train_opt['dataloader_length'] = len(dataloader)
 val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='train'),
                             batch_size=20, shuffle=False, num_workers=0)
 
+test_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='test'),
+                             batch_size=10, shuffle=False, num_workers=0)
+
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
@@ -104,7 +107,16 @@ def sample_images(batches_done):
     fake_B = model.generator(real_A)
     img_sample = torch.cat((real_A.data, fake_B.data, real_B.data), -2)
     # ipdb.set_trace()
-    save_image(img_sample, train_opt.get_img_root() + '%s.png' % batches_done, nrow=5, normalize=True)
+    save_image(img_sample, train_opt.get_img_root() + '/%s.png' % batches_done, nrow=5, normalize=True)
+
+
+def cal_test_loss():
+    imgs = next(iter(test_dataloader))
+    real_A = imgs['B'].type(Tensor)
+    real_B = imgs['A'].type(Tensor)
+    fake_B = model.generator(real_A)
+    test_lose_pixel = model.generator.loss_fun(fake_B, real_B).detach()
+    return {'test_loss_pixel': test_lose_pixel}
 
 
 # ----------
@@ -144,6 +156,8 @@ for epoch in range(opt.epoch, opt.ep):
             result.setdefault(key, []).append(val)
 
     result = {i: sum(result[i]) / len(result[i]) for i in result}
+    # 计算loss
+    result.update(cal_test_loss())
     if if_fitlog:
         fitlog.add_metric(result, epoch)
         fitlog.add_best_metric(result)
@@ -156,10 +170,6 @@ with io.open(train_opt.get_log_root() + 'list_loss.txt', 'a', encoding='utf-8') 
     file.write('tloss_res: {} \n'.format(tloss_res))
 pro.finish()
 if test:
-<<<<<<< HEAD
-    os.system('python test.py --model_dir \"%s\" --model_name %s --data_path \"%s\"' % (train_opt.get_model_root(), model_name, data_path))
-=======
     test_path = sys.path[0]+'/test.py'
     os.system('python \"%s\" --model_dir \"%s\" --model_name %s --data_path \"%s\"'
               % (test_path, train_opt.get_model_root(), model_name, data_path))
->>>>>>> master
