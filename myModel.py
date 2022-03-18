@@ -190,7 +190,7 @@ class GAN(nn.Module):
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrG_d'] * train_opt['dataloader_length'])
 
-            self.optimizer_D = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrD'],
+            self.optimizer_D = Adam_Optimizer(parameters=self.discriminator.parameters(), lr=train_opt['lrD'],
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrD_d'] * train_opt['dataloader_length'])
             self.train_opt = train_opt
@@ -258,7 +258,7 @@ class AutoEncoderGen(nn.Module):
 
     def step(self, x, y):
         generate = self(x)
-        loss_pixel = self.loss(y, generate) * 10
+        loss_pixel = self.loss(y, generate)
         self.optimizer_G.zero_grad()
         loss_pixel.backward()
         self.optimizer_G.step()
