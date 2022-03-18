@@ -115,7 +115,7 @@ def cal_test_loss():
     real_A = imgs['B'].type(Tensor)
     real_B = imgs['A'].type(Tensor)
     fake_B = model.generator(real_A)
-    test_lose_pixel = model.generator.loss_fun(fake_B, real_B).detach()
+    test_lose_pixel = model.generator.loss_fun(real_B, fake_B).detach()
     return {'test_loss_pixel': test_lose_pixel}
 
 

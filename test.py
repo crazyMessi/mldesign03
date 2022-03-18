@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()  # 创建解析器对象 可以添加参数
 # 为了找到训练模型参数地址，要与train.py中model_name参数一致
 parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
 parser.add_argument('--model_name', type=str, default="test", help='模型名')
-parser.add_argument('--if_remove', type=str, default=1, help='是否需要移除模型')
+parser.add_argument('--if_remove', type=int, default=1, help='是否需要移除模型')
 parser.add_argument('--data_path', type=str, default='fontdata', help='数据集位置')
 opt = parser.parse_args()
 my_opt = Test_opt(opt)
@@ -50,7 +50,7 @@ for j in range(len(filename)):
             save_image(fake_B, my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
                        normalize=True)
             save_image(target, my_opt.get_img_root() + '/%s.png' % str(i), nrow=10, normalize=True)
-            loss_test[j][i] = (myModel.generator_loss_fun(fake_B, target)).item()
+            loss_test[j][i] = (myModel.generator_loss_fun(target, fake_B)).item()
     if my_opt['if_remove'] > 0:
         os.remove(model_location)
 
@@ -59,5 +59,8 @@ step = max(1, int(len(loss_test)/5))
 for i in range(0, len(loss_test), step):
     ax.plot(loss_test[i, :], label=filename[i])
 ax.legend()
-plt.savefig(my_opt.get_log_root()+'/loss.png')
+plt.savefig(my_opt.get_img_root()+'/loss_summary1.png')
+plt.figure()
+plt.plot(np.mean(loss_test, 1), filename)
+plt.savefig(my_opt.get_img_root()+'/loss_summary2.png')
 print("测试完成")

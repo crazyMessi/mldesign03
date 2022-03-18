@@ -95,11 +95,11 @@ class GeneratorUNet(nn.Module):
             # 曾经尝试直接复制一个 但loss存在差异
             out_channels_rate = 2
 
-        self.up1 = UNetUp(512, 512*out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
-        self.up2 = UNetUp(1024, 512*out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
-        self.up3 = UNetUp(1024, 256*out_channels_rate, if_crop=if_crop)
-        self.up4 = UNetUp(512, 128*out_channels_rate, if_crop=if_crop)
-        self.up5 = UNetUp(256, 64*out_channels_rate, if_crop=if_crop)
+        self.up1 = UNetUp(512, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
+        self.up2 = UNetUp(1024, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
+        self.up3 = UNetUp(1024, 256 * out_channels_rate, if_crop=if_crop)
+        self.up4 = UNetUp(512, 128 * out_channels_rate, if_crop=if_crop)
+        self.up5 = UNetUp(256, 64 * out_channels_rate, if_crop=if_crop)
 
         self.final = nn.Sequential(
             nn.Upsample(scale_factor=2),
@@ -202,32 +202,39 @@ class GAN(nn.Module):
         source_generate2 = self.discriminator(generate.detach(), source)
         return generate, source_generate, source_target, source_generate2
 
-    def loss(self, generate, target, source_generate, source_target, source_generate2):
+    def loss(self, generate, target, source_generate, source_target, source_generate2,
+             if_G_backward=False, if_D_backward=False):
         invalid = source_target.clone().detach() * 0
         valid = invalid + 1
         # 计算生成模型误差
-        loss_pixel = self.generator.loss(generate, target)
         loss_sVg = self.discriminator.loss(source_generate, valid)
+        loss_pixel = self.generator.loss(generate, target)
         loss_G = loss_sVg + self.train_opt['weight_pic'] * loss_pixel
+        if if_G_backward:
+            self.optimizer_G.zero_grad()
+            loss_G.backward()
+            self.optimizer_G.step()
+            return loss_G, 0, loss_sVg, loss_pixel
         # 分辨源图像和目标图像
         loss_real = self.discriminator.loss(source_target, valid)
         # 分辨源图像和生成图像
         loss_fake = self.discriminator.loss(source_generate2, invalid)
         # Total loss
         loss_D = 0.5 * (loss_real + loss_fake)
+        if if_D_backward:
+            self.optimizer_D.zero_grad()
+            loss_D.backward()
+            self.optimizer_D.step()
+            return 0, loss_D, 0, 0
         return loss_G, loss_D, loss_sVg, loss_pixel
 
     def step(self, source, target):
         generate, source_generate, source_target, source_generate2 = self(source, target)
-        loss_G, loss_D, loss_sVg, loss_pixel = self.loss(generate, target, source_generate,
-                                                         source_target, source_generate2)
-        self.optimizer_G.zero_grad()
-        loss_G.backward()
-        self.optimizer_G.step()
+        loss_G, _, loss_sVg, loss_pixel = self.loss(generate, target, source_generate, source_target,
+                                                    source_generate2, if_G_backward=True)
+        _, loss_D, _, _ = self.loss(generate, target, source_generate, source_target,
+                                    source_generate2, if_D_backward=True)
 
-        self.optimizer_D.zero_grad()
-        loss_D.backward()
-        self.optimizer_D.step()
         loss_dic = {'loss_G': loss_G.item(), 'loss_D': loss_D.item(), 'loss_pixel': loss_pixel.item(),
                     'loss_sVg': loss_sVg.item()}
         return loss_dic
