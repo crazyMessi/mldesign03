@@ -1,6 +1,8 @@
 import argparse
+import re
 
 import matplotlib.pyplot as plt
+import torch
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
@@ -36,6 +38,7 @@ Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 model_dict = my_opt.get_model_root()
 filename = os.listdir(model_dict)
 loss_test = np.zeros([len(filename), len(val_dataloader)])
+ep = []
 
 for j in range(len(filename)):
     if os.path.splitext(filename[j])[1] == '.pth':
@@ -47,12 +50,17 @@ for j in range(len(filename)):
             target = Variable(batch['A'].type(Tensor))
             fake_B = model.generator(source)
             # 图片存放处
-            save_image(fake_B, my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
+            save_image(torch.cat((target,fake_B), -2), my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
                        normalize=True)
-            save_image(target, my_opt.get_img_root() + '/%s.png' % str(i), nrow=10, normalize=True)
+            # save_image(target, my_opt.get_img_root() + '/%s.png' % str(i), nrow=10, normalize=True)
             loss_test[j][i] = (myModel.generator_loss_fun(target, fake_B)).item()
-    if my_opt['if_remove'] > 0:
-        os.remove(model_location)
+
+        if my_opt['if_remove'] > 0:
+            os.remove(model_location)
+        # 获得ep数
+        ep_count = re.findall(r"_\d*.", filename[j])
+        ep_count = re.findall(r"\d+", ep_count[-1])
+        ep.append(ep_count[-1])
 
 ax = plt.subplot()
 step = max(1, int(len(loss_test)/5))
@@ -61,6 +69,6 @@ for i in range(0, len(loss_test), step):
 ax.legend()
 plt.savefig(my_opt.get_img_root()+'/loss_summary1.png')
 plt.figure()
-plt.plot(np.mean(loss_test, 1), filename)
+plt.plot(ep, np.mean(loss_test, 1))
 plt.savefig(my_opt.get_img_root()+'/loss_summary2.png')
 print("测试完成")

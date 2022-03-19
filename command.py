@@ -1,9 +1,8 @@
 import os
 
-ep = 402
-lrGs = [0.0001, 0.0002]
-bss = [8, 16]
-
+ep = 200
+lrGs = [0.01, 0.05]
+bss = [8,16,40,200]
 
 def train(name):
     for lrG in lrGs:
@@ -11,8 +10,8 @@ def train(name):
             os.system('python my_train.py --model_name %s --ep %d --lrG %f --bs %d' % (name, ep, lrG, bs))
 
 
-model_name = 'pic2pic'
+model_name = 'AutoEncoderGen'
 train(model_name)
 
-model_name = 'GAN'
+model_name = 'AutoEncoderGen_no_dropout'
 train(model_name)

@@ -2,6 +2,7 @@ from torch import nn
 from utils.my_optimizer import *
 
 generator_loss_fun = torch.nn.L1Loss()
+
 discriminator_loss_fun = torch.nn.MSELoss()
 
 
