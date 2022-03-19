@@ -1,6 +1,7 @@
 '''
 由opt决定的文件树
 '''
+import argparse
 import os
 import tkinter as tk
 from tkinter import filedialog
@@ -128,3 +129,54 @@ def askopenfilename():
     root = tk.Tk()
     root.withdraw()
     return filedialog.askopenfilenames()
+
+
+def get_base_parse():
+    parser = argparse.ArgumentParser()
+    # 为了找到训练模型参数地址，要与train.py中model_name参数一致
+    parser.add_argument('--model_name', type=str, default="null", help='模型名')
+    parser.add_argument('--model_mode', type=str, default='null', help='设置模型训练还是测试')
+
+    parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
+    parser.add_argument('--lrD', type=float, default=1e-4, help='adam: learning rate')
+    parser.add_argument('--bs', type=int, default=8, help='size of the batches')
+    parser.add_argument('--ep', type=int, default=200, help='number of epochs of training')
+    parser.add_argument('--lrG_d', type=int, default=90, help='G lr down')
+    parser.add_argument('--lrD_d', type=int, default=10, help='D lr down')
+    parser.add_argument('--weight_pic', type=float, default=10, help='计算生成器loss时,pic_loss的比例')
+    parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
+
+    parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
+    parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
+    parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from which to start lr decay')
+    parser.add_argument('--n_cpu', type=int, default=8,
+                        help='number of cpu threads to use during batch generation')
+    parser.add_argument('--img_height', type=int, default=64, help='size of image height')
+    parser.add_argument('--img_width', type=int, default=64, help='size of image width')
+    parser.add_argument('--channels', type=int, default=3, help='number of image channels')
+    parser.add_argument('--sample_interval', type=int, default=500,
+                        help='interval between sampling of images from generators')
+    parser.add_argument('--if_remove', type=int, default=1, help='是否需要移除模型')
+    parser.add_argument('--data_path', type=str, default='fontdata', help='数据集位置')
+    parser.add_argument('--fixed_loss', type=int, default=1, help='是否使用修正的loss函数')
+    parser.add_argument('--checkpoint_interval', type=int, default=20, help='interval between model checkpoints')
+    return parser
+
+
+def get_train_opt():
+    parser = get_base_parse()
+    parser.add_argument('--if_fitlog', type=int, default=1, help='是否使用fitlog')
+    parser.add_argument('--if_test', type=int, default=1, help='是否在执行完备后test')
+    opt = parser.parse_args()
+    opt = Train_opt(opt)
+    opt['model_mode'] = 'train'
+    return opt
+
+
+def get_test_opt():
+    parser = get_base_parse()  # 创建解析器对象 可以添加参数
+    parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
+    opt = parser.parse_args()
+    opt = Test_opt(opt)
+    opt['model_mode'] = 'test'
+    return opt

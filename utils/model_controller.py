@@ -3,6 +3,18 @@ from myModel import *
 valid_model_name = ['GAN', 'AutoEncoderGen', 'pic2pic', 'AutoEncoderGen_no_dropout']
 
 
+# 修正的生成器loss
+class fixed_loss_G(nn.Module):
+    def __init__(self):
+        super(fixed_loss_G, self).__init__()
+        self.loss_G = torch.nn.L1Loss()
+        return
+
+    def forward(self, x, y):
+        loss_G = self.loss_G(1 - x, 1 - y)
+        return loss_G / (torch.mean(1 - y))
+
+
 # 为网络参数赋正态分布的初值
 def weights_init_normal(m):
     classname = m.__class__.__name__
@@ -25,13 +37,16 @@ def weights_init_zero(m):
 
 # 根据opt选取模型
 def model_selector(opt):
-    if isinstance(opt, dict):
-        model_name = opt['model_name']
+    model_name = opt['model_name']
+    if opt['fixed_loss'] > 0:
+        g_loss_func = fixed_loss_G()
     else:
-        model_name = opt
+        g_loss_func = torch.nn.L1Loss()
 
-    generator_list = {'UNet': GeneratorUNet(), 'GAN': GeneratorUNet(if_crop=False), 'AutoEncoder': AutoEncoder(), 
-                      'AutoEncoder_no_dropout': AutoEncoder(dropout_rate=0.0)}
+    generator_list = {'UNet': GeneratorUNet(loss_fun=g_loss_func),
+                      'GAN': GeneratorUNet(if_crop=False, loss_fun=g_loss_func),
+                      'AutoEncoder': AutoEncoder(loss_fun=g_loss_func),
+                      'AutoEncoder_no_dropout': AutoEncoder(dropout_rate=0.0, loss_fun=g_loss_func)}
     discriminator_list = {'Discriminator': Discriminator()}
 
     while model_name not in valid_model_name:

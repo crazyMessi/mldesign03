@@ -9,20 +9,14 @@ from torchvision.utils import save_image
 
 import myModel
 from dataset import *
-from utils.file_manager import *
+from utils.option import *
 from utils.model_controller import model_selector
 
-parser = argparse.ArgumentParser()  # 创建解析器对象 可以添加参数
-# 为了找到训练模型参数地址，要与train.py中model_name参数一致
-parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
-parser.add_argument('--model_name', type=str, default="test", help='模型名')
-parser.add_argument('--if_remove', type=int, default=1, help='是否需要移除模型')
-parser.add_argument('--data_path', type=str, default='fontdata', help='数据集位置')
-opt = parser.parse_args()
-my_opt = Test_opt(opt)
+# 获取测试参数
+my_opt = get_test_opt()
 cuda = True if torch.cuda.is_available() else False
 data_path = my_opt['data_path']
-model = model_selector(my_opt.opt['model_name'])
+model = model_selector(my_opt)
 
 if cuda:
     model.cuda()
@@ -50,10 +44,10 @@ for j in range(len(filename)):
             target = Variable(batch['A'].type(Tensor))
             fake_B = model.generator(source)
             # 图片存放处
-            save_image(torch.cat((target,fake_B), -2), my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
+            save_image(torch.cat((target, fake_B), -2), my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
                        normalize=True)
             # save_image(target, my_opt.get_img_root() + '/%s.png' % str(i), nrow=10, normalize=True)
-            loss_test[j][i] = (myModel.generator_loss_fun(target, fake_B)).item()
+            loss_test[j][i] = (model.generator.loss_fun(fake_B, target)).item()
 
         if my_opt['if_remove'] > 0:
             os.remove(model_location)

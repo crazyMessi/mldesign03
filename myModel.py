@@ -1,10 +1,6 @@
+import torch
 from torch import nn
 from utils.my_optimizer import *
-
-generator_loss_fun = torch.nn.L1Loss()
-
-discriminator_loss_fun = torch.nn.MSELoss()
-
 
 # ===================================
 #              网络单元
@@ -81,7 +77,7 @@ class UNetUp(nn.Module):
 #              子模型
 # ===================================
 class GeneratorUNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, loss_fun=generator_loss_fun, if_crop=True, dropout_rate=0.5):
+    def __init__(self, in_channels=3, out_channels=3, loss_fun=torch.nn.L1Loss(), if_crop=True, dropout_rate=0.5):
         super(GeneratorUNet, self).__init__()
         self.down1 = UNetDown(in_channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
@@ -131,7 +127,7 @@ class GeneratorUNet(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels=3, loss_fun=discriminator_loss_fun):
+    def __init__(self, in_channels=3, loss_fun=torch.nn.MSELoss()):
         super(Discriminator, self).__init__()
 
         def discriminator_block(in_filters, out_filters, normalization=True):
@@ -163,7 +159,7 @@ class Discriminator(nn.Module):
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, loss_fun=generator_loss_fun, dropout_rate=0.5):
+    def __init__(self, in_channels=3, out_channels=3, loss_fun=torch.nn.L1Loss(), dropout_rate=0.5):
         super(AutoEncoder, self).__init__()
         # AutoEncoder即不使用crop的Unet
         self.model = GeneratorUNet(in_channels=in_channels, out_channels=out_channels, loss_fun=loss_fun, if_crop=False,
@@ -186,7 +182,7 @@ class GAN(nn.Module):
         super(GAN, self).__init__()
         self.generator = generator
         self.discriminator = discriminator
-        if isinstance(train_opt, dict):
+        if train_opt['model_mode'] == 'train':
             self.optimizer_G = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrG'],
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrG_d'] * train_opt['dataloader_length'])
@@ -246,7 +242,7 @@ class AutoEncoderGen(nn.Module):
     def __init__(self, train_opt=None, generator=AutoEncoder()):
         super(AutoEncoderGen, self).__init__()
         self.generator = generator
-        if isinstance(train_opt, dict):
+        if train_opt['model_mode'] == 'train':
             self.optimizer_G = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrG'],
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrG_d'] * train_opt['dataloader_length'])
@@ -259,7 +255,7 @@ class AutoEncoderGen(nn.Module):
 
     def step(self, x, y):
         generate = self(x)
-        loss_pixel = self.loss(y, generate)
+        loss_pixel = self.loss(generate, y)
         self.optimizer_G.zero_grad()
         loss_pixel.backward()
         self.optimizer_G.step()

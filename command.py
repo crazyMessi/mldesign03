@@ -1,17 +1,15 @@
 import os
 
-ep = 200
-lrGs = [0.01, 0.05]
-bss = [8,16,40,200]
+ep = 50
+lrGs = [0.0001]
+bss = [40]
+model_name = ['pic2pic', 'AutoEncoderGen', 'GAN', 'AutoEncoderGen_no_dropout']
 
-def train(name):
+data_path = 'fontdata'
+script_path = 'my_train.py'
+
+for n in model_name:
     for lrG in lrGs:
         for bs in bss:
-            os.system('python my_train.py --model_name %s --ep %d --lrG %f --bs %d' % (name, ep, lrG, bs))
-
-
-model_name = 'AutoEncoderGen'
-train(model_name)
-
-model_name = 'AutoEncoderGen_no_dropout'
-train(model_name)
+            os.system('python \"%s\" --model_name %s --ep %d --lrG %f --bs %d --data_path "%s\"'
+                      % (script_path, n, ep, lrG, bs, data_path))
