@@ -1,6 +1,8 @@
 import glob
 import random
 import os
+import matplotlib
+from matplotlib.pyplot import figure
 import numpy as np
 import torch
 import torchvision.utils
@@ -9,21 +11,14 @@ from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as transforms
 
-# from sklearn.cross_validation import train_test_split
-try:
-    import ipdb
-except:
-    import pdb as ipdb
-
 
 class ImageDataset(Dataset):
-    def __init__(self, root, transforms_=None, mode='train'):
+    def __init__(self, root, transforms_=None, mode='train'): 
         self.transform = transforms.Compose(transforms_)
         # ipdb.set_trace()
         rootPath = root + '/{}'.format(mode)
         filename = os.listdir(rootPath)
         path = rootPath + '/' + filename[0]
-
         self.imgs = np.load(path)
 
     def __getitem__(self, index):
@@ -37,4 +32,3 @@ class ImageDataset(Dataset):
 
     def __len__(self):
         return len(self.imgs)
-

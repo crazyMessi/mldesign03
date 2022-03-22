@@ -1,46 +1,74 @@
+import re
 import torch
 from torch import nn
 from utils.my_optimizer import *
 
+
 # ===================================
 #              网络单元
 # ===================================
+class ResnetBlock(nn.Module):
+    """Define a Resnet block"""
 
+    def __init__(self, channels, padding_type, norm_layer, dropout, use_bias):
+        """Initialize the Resnet block
 
-# class UNetDown(nn.Module):
-#     def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4):
-#
-#         super(UNetDown, self).__init__()
-#         layers = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=2, padding=1, bias=False)]
-#         if normalize:
-#             layers.append(nn.InstanceNorm2d(out_size))
-#         layers.append(nn.LeakyReLU(0.2))
-#         if dropout:
-#             layers.append(nn.Dropout(dropout))
-#         self.model = nn.Sequential(*layers)
-#
-#     def forward(self, x):
-#         return self.model(x)
+        A resnet block is a conv block with skip connections
+        We construct a conv block with build_conv_block function,
+        and implement skip connections in <forward> function.
+        Original Resnet paper: https://arxiv.org/pdf/1512.03385.pdf
+        """
+        super(ResnetBlock, self).__init__()
+        self.conv_block = self.build_conv_block(channels, padding_type, norm_layer, dropout, use_bias)
 
+    def build_conv_block(self, dim, padding_type, norm_layer, dropout, use_bias):
+        """Construct a convolutional block.
 
-# class Decoder(nn.Module):
-#     def __init__(self, in_size, out_size, dropout=0.0, normalize=True):
-#         super(Decoder, self).__init__()
-#         layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1, bias=False)]
-#         if normalize:
-#             layers.append(nn.InstanceNorm2d(out_size))
-#         layers.append(nn.ReLU(inplace=True))
-#         if dropout:
-#             layers.append(nn.Dropout(dropout))
-#         self.model = nn.Sequential(*layers)
-#
-#     def forward(self, x):
-#         x = self.model(x)
-#         return x
+        Parameters:
+            dim (int)           -- the number of channels in the conv layer.
+            padding_type (str)  -- the name of padding layer: reflect | replicate | zero
+            norm_layer          -- normalization layer
+            dropout (float)  -- if use dropout layers.
+            use_bias (bool)     -- if the conv layer uses bias or not
+
+        Returns a conv block (with a conv layer, a normalization layer, and a non-linearity layer (ReLU))
+        """
+        conv_block = []
+        p = 0
+        if padding_type == 'reflect':
+            conv_block += [nn.ReflectionPad2d(1)]
+        elif padding_type == 'replicate':
+            conv_block += [nn.ReplicationPad2d(1)]
+        elif padding_type == 'zero':
+            p = 1
+        else:
+            raise NotImplementedError('padding [%s] is not implemented' % padding_type)
+
+        conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias), norm_layer(dim), nn.ReLU(True)]
+        if dropout > 0:
+            conv_block += [nn.Dropout(dropout)]
+
+        p = 0
+        if padding_type == 'reflect':
+            conv_block += [nn.ReflectionPad2d(1)]
+        elif padding_type == 'replicate':
+            conv_block += [nn.ReplicationPad2d(1)]
+        elif padding_type == 'zero':
+            p = 1
+        else:
+            raise NotImplementedError('padding [%s] is not implemented' % padding_type)
+        conv_block += [nn.Conv2d(dim, dim, kernel_size=3, padding=p, bias=use_bias), norm_layer(dim)]
+
+        return nn.Sequential(*conv_block)
+
+    def forward(self, x):
+        """Forward function (with skip connections)"""
+        out = x + self.conv_block(x)  # add skip connections
+        return out
 
 
 class UNetDown(nn.Module):
-    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4, if_res_block=False):
+    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4):
         # Unet和AutoEncoder的下采样是一致的
         super(UNetDown, self).__init__()
         layers = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=2, padding=1, bias=False)]
@@ -77,7 +105,7 @@ class UNetUp(nn.Module):
 #              子模型
 # ===================================
 class GeneratorUNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, loss_fun=torch.nn.L1Loss(), if_crop=True, dropout_rate=0.5):
+    def __init__(self, in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5):
         super(GeneratorUNet, self).__init__()
         self.down1 = UNetDown(in_channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
@@ -88,7 +116,7 @@ class GeneratorUNet(nn.Module):
 
         out_channels_rate = 1
         if not if_crop:
-            # 如果不使用上采样 则通道数翻倍
+            # 如果不使用下采样的信息补充 则通道数翻倍
             # 曾经尝试直接复制一个 但loss存在差异
             out_channels_rate = 2
 
@@ -104,7 +132,6 @@ class GeneratorUNet(nn.Module):
             nn.Conv2d(128, out_channels, 4, padding=1),
             nn.Tanh()
         )
-        self.loss_fun = loss_fun
 
     def forward(self, x):
         # U-Net generator with skip connections from encoder to decoder
@@ -122,12 +149,104 @@ class GeneratorUNet(nn.Module):
         u5 = self.up5(u4, d1)  # u5:[1,512,32,32]
         return self.final(u5)
 
-    def loss(self, generate, target):
-        return self.loss_fun(generate, target)
+    # def loss(self, generate, target):
+    #     return self.loss_fun(generate, target)
+
+
+class AutoEncoder(nn.Module):
+    def __init__(self, in_channels=3, out_channels=3, dropout_rate=0.5):
+        super(AutoEncoder, self).__init__()
+        # AutoEncoder即不使用crop的Unet
+        self.model = GeneratorUNet(in_channels=in_channels, out_channels=out_channels, if_crop=False,
+                                   dropout_rate=dropout_rate)
+
+    def forward(self, x):
+        y = self.model(x)
+        return y
+
+
+# 傻瓜式生成器
+class DumpGenerator(nn.Module):
+    def __init__(self, loss_fun=torch.nn.L1Loss(), case=0):
+        super(DumpGenerator, self).__init__()
+        # 生成器类型
+        # case = 0,返回图像每个像素点为x最大值(即空白图像)
+        # case = 1,返回原图像
+        self.case = case
+        self.loss_fun = loss_fun
+
+    def loss(self, x, y):
+        return self.loss_fun(x, y)
+
+    def forward(self, x):
+        if self.case == 0:
+            return torch.max(x) * torch.ones_like(x)
+        else:
+            return x
+
+
+class ResnetGenerator(nn.Module):
+    """Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
+
+    We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
+    """
+
+    def __init__(self, in_channels=3, out_channels=3, ngf=64, norm_layer=nn.BatchNorm2d, dropout_rate=0, n_blocks=6,
+                 padding_type='reflect'):
+        """Construct a Resnet-based generator
+
+        Parameters:
+            in_channels (int)      -- the number of channels in input images
+            out_channels (int)     -- the number of channels in output images
+            ngf (int)           -- the number of filters in the last conv layer
+            norm_layer          -- normalization layer
+            use_dropout (bool)  -- if use dropout layers
+            n_blocks (int)      -- the number of ResNet blocks
+            padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
+        """
+        assert (n_blocks >= 0)
+        super(ResnetGenerator, self).__init__()
+        use_bias = norm_layer == nn.InstanceNorm2d
+
+        model = [nn.ReflectionPad2d(3),
+                 nn.Conv2d(in_channels, ngf, kernel_size=7, padding=0, bias=use_bias),
+                 norm_layer(ngf),
+                 nn.ReLU(True)]
+
+        n_downsampling = 2
+        for i in range(n_downsampling):  # add downsampling layers
+            mult = 2 ** i
+            model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=1, bias=use_bias),
+                      norm_layer(ngf * mult * 2),
+                      nn.ReLU(True)]
+
+        mult = 2 ** n_downsampling
+        for i in range(n_blocks):  # add ResNet blocks
+
+            model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, dropout=dropout_rate,
+                                  use_bias=use_bias)]
+
+        for i in range(n_downsampling):  # add upsampling layers
+            mult = 2 ** (n_downsampling - i)
+            model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
+                                         kernel_size=3, stride=2,
+                                         padding=1, output_padding=1,
+                                         bias=use_bias),
+                      norm_layer(int(ngf * mult / 2)),
+                      nn.ReLU(True)]
+        model += [nn.ReflectionPad2d(3)]
+        model += [nn.Conv2d(ngf, out_channels, kernel_size=7, padding=0)]
+        model += [nn.Tanh()]
+
+        self.model = nn.Sequential(*model)
+
+    def forward(self, input):
+        """Standard forward"""
+        return self.model(input)
 
 
 class Discriminator(nn.Module):
-    def __init__(self, in_channels=3, loss_fun=torch.nn.MSELoss()):
+    def __init__(self, in_channels=3):
         super(Discriminator, self).__init__()
 
         def discriminator_block(in_filters, out_filters, normalization=True):
@@ -146,7 +265,6 @@ class Discriminator(nn.Module):
             nn.ZeroPad2d((1, 0, 1, 0)),
             nn.Conv2d(512, 1, 4, padding=1, bias=False)
         )
-        self.loss_fun = loss_fun
 
     def forward(self, img_A, img_B):
         # Concatenate image and condition image
@@ -154,31 +272,16 @@ class Discriminator(nn.Module):
         img_input = torch.cat((img_A, img_B), 1)
         return self.model(img_input)
 
-    def loss(self, pred, real):
-        return self.loss_fun(pred, real)
-
-
-class AutoEncoder(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, loss_fun=torch.nn.L1Loss(), dropout_rate=0.5):
-        super(AutoEncoder, self).__init__()
-        # AutoEncoder即不使用crop的Unet
-        self.model = GeneratorUNet(in_channels=in_channels, out_channels=out_channels, loss_fun=loss_fun, if_crop=False,
-                                   dropout_rate=dropout_rate)
-        self.loss_fun = loss_fun
-
-    def forward(self, x):
-        y = self.model(x)
-        return y
-
-    def loss(self, x, y):
-        return self.loss_fun(x, y)
+    # def loss(self, pred, real):
+    #     return self.loss_fun(pred, real)
 
 
 # ===================================
-#              顶级模型
+#           面向训练、测试的模型
 # ===================================
 class GAN(nn.Module):
-    def __init__(self, train_opt=None, generator=GeneratorUNet(), discriminator=Discriminator()):
+    def __init__(self, train_opt=None, generator=GeneratorUNet(), discriminator=Discriminator(),
+                 g_loss_func=torch.nn.L1Loss(), d_loss_func=torch.nn.MSELoss()):
         super(GAN, self).__init__()
         self.generator = generator
         self.discriminator = discriminator
@@ -191,6 +294,8 @@ class GAN(nn.Module):
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrD_d'] * train_opt['dataloader_length'])
             self.train_opt = train_opt
+        self.g_loss_func = g_loss_func
+        self.d_loss_func = d_loss_func
 
     def forward(self, source, target):
         generate = self.generator(source)
@@ -204,8 +309,8 @@ class GAN(nn.Module):
         invalid = source_target.clone().detach() * 0
         valid = invalid + 1
         # 计算生成模型误差
-        loss_sVg = self.discriminator.loss(source_generate, valid)
-        loss_pixel = self.generator.loss(generate, target)
+        loss_sVg = self.d_loss_func(source_generate, valid)
+        loss_pixel = self.g_loss_func(generate, target)
         loss_G = loss_sVg + self.train_opt['weight_pic'] * loss_pixel
         if if_G_backward:
             self.optimizer_G.zero_grad()
@@ -213,9 +318,9 @@ class GAN(nn.Module):
             self.optimizer_G.step()
             return loss_G, 0, loss_sVg, loss_pixel
         # 分辨源图像和目标图像
-        loss_real = self.discriminator.loss(source_target, valid)
+        loss_real = self.d_loss_func(source_target, valid)
         # 分辨源图像和生成图像
-        loss_fake = self.discriminator.loss(source_generate2, invalid)
+        loss_fake = self.d_loss_func(source_generate2, invalid)
         # Total loss
         loss_D = 0.5 * (loss_real + loss_fake)
         if if_D_backward:
@@ -237,18 +342,19 @@ class GAN(nn.Module):
         return loss_dic
 
 
-# 基于AutoEncoder的图片生成器
+# 基于单个generator的图片生成器
 class AutoEncoderGen(nn.Module):
-    def __init__(self, train_opt=None, generator=AutoEncoder()):
+    def __init__(self, train_opt=None, generator=AutoEncoder(), g_loss_func=torch.nn.L1Loss()):
         super(AutoEncoderGen, self).__init__()
         self.generator = generator
         if train_opt['model_mode'] == 'train':
             self.optimizer_G = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrG'],
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrG_d'] * train_opt['dataloader_length'])
+        self.g_loss_func = g_loss_func
 
     def loss(self, x, y):
-        return self.generator.loss_fun(x, y)
+        return self.g_loss_func(x, y)
 
     def forward(self, x):
         return self.generator(x)
@@ -261,3 +367,24 @@ class AutoEncoderGen(nn.Module):
         self.optimizer_G.step()
         loss_dic = {'loss_pixel': loss_pixel.item()}
         return loss_dic
+
+
+# 傻瓜式生成器
+class Dump(nn.Module):
+    def __init__(self, generator=DumpGenerator()):
+        super(Dump, self).__init__()
+        self.generator = generator
+
+    def loss(self, x, y):
+        return self.generator.loss_fun(x, y)
+
+    def forward(self, x):
+        return self.generator(x)
+
+    def step(self, x, y):
+        loss_pixel = self.loss(self.generator(x), y)
+        loss_dic = {'loss_pixel': loss_pixel.item()}
+        return loss_dic
+
+
+pass

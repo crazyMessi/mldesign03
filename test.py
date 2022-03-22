@@ -21,7 +21,15 @@ model = model_selector(my_opt)
 if cuda:
     model.cuda()
 
-transforms_ = [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+transforms_ = []
+if my_opt['channels'] == 1:
+    transforms_.append(transforms.ToPILImage())
+    transforms_.append(transforms.Grayscale(num_output_channels=1))
+    transforms_.append(transforms.ToTensor())
+    transforms_.append(transforms.Normalize(0.5, 0.5))
+else:
+    transforms_ = [transforms.ToTensor(),
+                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
 
 # ImageDataset第一个参数改成个人数据集存放地址
 val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='test'),
@@ -44,10 +52,11 @@ for j in range(len(filename)):
             target = Variable(batch['A'].type(Tensor))
             fake_B = model.generator(source)
             # 图片存放处
-            save_image(torch.cat((target, fake_B), -2), my_opt.get_img_root()+'/%s.png' % ('img'+str(i) + '_' + filename[j].split('.')[0]), nrow=10,
+            save_image(torch.cat((source, target, fake_B), -2), my_opt.get_img_root()
+                       + '/%s.png' % ('img' + str(i) + '_' + filename[j].split('.')[0]), nrow=10,
                        normalize=True)
             # save_image(target, my_opt.get_img_root() + '/%s.png' % str(i), nrow=10, normalize=True)
-            loss_test[j][i] = (model.generator.loss_fun(fake_B, target)).item()
+            loss_test[j][i] = (model.g_loss_func(fake_B, target)).item()
 
         if my_opt['if_remove'] > 0:
             os.remove(model_location)
@@ -57,12 +66,12 @@ for j in range(len(filename)):
         ep.append(ep_count[-1])
 
 ax = plt.subplot()
-step = max(1, int(len(loss_test)/5))
+step = max(1, int(len(loss_test) / 5))
 for i in range(0, len(loss_test), step):
     ax.plot(loss_test[i, :], label=filename[i])
 ax.legend()
-plt.savefig(my_opt.get_img_root()+'/loss_summary1.png')
+plt.savefig(my_opt.get_img_root() + '/loss_summary1.png')
 plt.figure()
 plt.plot(ep, np.mean(loss_test, 1))
-plt.savefig(my_opt.get_img_root()+'/loss_summary2.png')
+plt.savefig(my_opt.get_img_root() + '/loss_summary2.png')
 print("测试完成")

@@ -1,6 +1,5 @@
 import argparse
 import sys
-import fitlog
 import io
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader
@@ -8,6 +7,7 @@ from dataset import *
 import progressbar
 import utils.option as option
 from utils.model_controller import *
+
 pro = progressbar.ProgressBar()
 
 train_opt = option.get_train_opt()
@@ -19,14 +19,22 @@ data_path = train_opt['data_path']
 model_name = train_opt['model_name']
 
 if train_opt['if_fitlog']:
+    import fitlog
+
     log_name = 'logs/'
     os.makedirs(log_name, exist_ok=True)
     fitlog.set_log_dir(log_name)  # 设置log文件夹为'logs/', fitlog在每次运行的时候会默认以时间戳的方式在里面生成新的log
     fitlog.add_hyper(train_opt.get_fitlog_hyper())
 
-transforms_ = [transforms.ToTensor(),
-               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-
+transforms_ = []
+if train_opt['channels'] == 1:
+    transforms_.append(transforms.ToPILImage())
+    transforms_.append(transforms.Grayscale(num_output_channels=1))
+    transforms_.append(transforms.ToTensor())
+    transforms_.append(transforms.Normalize(0.5, 0.5))
+else:
+    transforms_ = [transforms.ToTensor(),
+                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
 # 修改成本地存放数据集地址
 dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_),
                         batch_size=train_opt['bs'], shuffle=True, num_workers=0)
@@ -71,7 +79,7 @@ def cal_test_loss():
     real_A = imgs['B'].type(Tensor)
     real_B = imgs['A'].type(Tensor)
     fake_B = model.generator(real_A)
-    test_lose_pixel = model.generator.loss_fun(fake_B, real_B).detach()
+    test_lose_pixel = model.g_loss_func(fake_B, real_B).detach()
     return {'test_loss_pixel': test_lose_pixel}
 
 
@@ -81,7 +89,6 @@ def cal_test_loss():
 model.train()
 
 min_tloss = 500
-tloss_res = {}
 
 bs_count = len(dataloader)
 pro.start(train_opt['ep'] * bs_count)
@@ -101,9 +108,6 @@ for epoch in range(train_opt['epoch'], train_opt['ep']):
         # 打印进度条
         pro.update(i + epoch * bs_count)
 
-    avg_loss = 0
-    tloss_res[epoch] = avg_loss
-
     # 计算一个epoch中的指标均值
     result = {}
     for value in loss_dic:
@@ -118,10 +122,12 @@ for epoch in range(train_opt['epoch'], train_opt['ep']):
         fitlog.add_best_metric(result)
 
     # 每50轮保存模型参数
-    if epoch % 50 == 1 or epoch == train_opt['ep']-1:
+    if epoch % 50 == 1 or epoch == train_opt['ep'] - 1:
         torch.save(model.state_dict(), '%s/%s_%d.pth' % (train_opt.get_model_root(), model_name, epoch))
 pro.finish()
 if test:
-    test_path = sys.path[0]+'/test.py'
+    test_path = sys.path[0] + '/test.py'
     os.system('python \"%s\" --model_dir \"%s\" --model_name %s --data_path \"%s\"'
-              % (test_path, train_opt.get_model_root(), model_name, data_path))
+              ' --dropout %d --channels %d'
+              % (test_path, train_opt.get_model_root(), model_name, data_path, train_opt['dropout'],
+                 train_opt['channels']))

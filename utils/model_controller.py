@@ -1,6 +1,6 @@
 from myModel import *
 
-valid_model_name = ['GAN', 'AutoEncoderGen', 'pic2pic', 'AutoEncoderGen_no_dropout']
+valid_model_name = ['AutoEncoderGen', 'UNetGen', 'ResGen', 'GAN', 'pic2pic', 'ResGAN']
 
 
 # 修正的生成器loss
@@ -38,15 +38,18 @@ def weights_init_zero(m):
 # 根据opt选取模型
 def model_selector(opt):
     model_name = opt['model_name']
-    if opt['fixed_loss'] > 0:
-        g_loss_func = fixed_loss_G()
-    else:
-        g_loss_func = torch.nn.L1Loss()
+    g_loss_func_list = {'L1': torch.nn.L1Loss(), 'fixed_L1': fixed_loss_G()}
+    g_loss_func = g_loss_func_list[opt['g_loss_func']]
+    dropout = 0.5 if opt['dropout'] > 0 else 0
 
-    generator_list = {'UNet': GeneratorUNet(loss_fun=g_loss_func),
-                      'GAN': GeneratorUNet(if_crop=False, loss_fun=g_loss_func),
-                      'AutoEncoder': AutoEncoder(loss_fun=g_loss_func),
-                      'AutoEncoder_no_dropout': AutoEncoder(dropout_rate=0.0, loss_fun=g_loss_func)}
+    generator_list = {'UNet': GeneratorUNet(dropout_rate=dropout, in_channels=opt['channels'],
+                                            out_channels=opt['channels']),
+                      'AutoEncoder': AutoEncoder(dropout_rate=dropout, in_channels=opt['channels'],
+                                                 out_channels=opt['channels']),
+                      'ResGenerator': ResnetGenerator(dropout_rate=dropout, in_channels=opt['channels'],
+                                                      out_channels=opt['channels']),
+                      'Dump': DumpGenerator()
+                      }
     discriminator_list = {'Discriminator': Discriminator()}
 
     while model_name not in valid_model_name:
@@ -54,20 +57,36 @@ def model_selector(opt):
         print(valid_model_name)
         model_name = input()
 
-    if model_name == 'AutoEncoderGen':
-        model = AutoEncoderGen(train_opt=opt, generator=generator_list['AutoEncoder'])
+    discriminator = generator = []
+    if model_name.find('AutoEncoderGen') >= 0:
+        generator = generator_list['AutoEncoder']
 
-    if model_name == 'AutoEncoderGen_no_dropout':
-        model = AutoEncoderGen(train_opt=opt, generator=generator_list['AutoEncoder_no_dropout'])
-
-    if model_name == 'GAN':
-        generator = generator_list['GAN']
+    if model_name.find('GAN') >= 0:
+        generator = generator_list['AutoEncoder']
         discriminator = discriminator_list['Discriminator']
-        model = GAN(train_opt=opt, generator=generator, discriminator=discriminator)
 
-    if model_name == 'pic2pic':
+    if model_name.find('UNet') >= 0:
+        generator = generator_list['UNet']
+
+    if model_name.find('pic2pic') >= 0:
         generator = generator_list['UNet']
         discriminator = discriminator_list['Discriminator']
-        model = GAN(train_opt=opt, generator=generator, discriminator=discriminator)
+
+    if model_name.find('ResGen') >= 0:
+        generator = generator_list['ResGenerator']
+
+    if model_name.find('ResGAN') >= 0:
+        generator = generator_list['ResGenerator']
+        discriminator = discriminator_list['Discriminator']
+
+    if not discriminator and generator:
+        # 这是一个自编码器
+        model = AutoEncoderGen(train_opt=opt, generator=generator, g_loss_func=g_loss_func)
+    else:
+        # 这是一个对抗神经网络
+        model = GAN(train_opt=opt, generator=generator, g_loss_func=g_loss_func)
+
+    # if model_name == 'Dump':
+    #     model = Dump(generator_list['Dump'])
 
     return model
