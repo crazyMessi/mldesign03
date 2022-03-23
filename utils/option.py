@@ -87,7 +87,7 @@ class Test_opt:
             print("未指定合法目录,请手动选择待测试模型位置")
             had_set = False
 
-        while self.opt['model_name'] not in valid_model_name or not had_set:
+        while self.opt['model_name'] not in valid_model_name and not had_set:
             root = tk.Tk()
             root.withdraw()
             model_dir = filedialog.askdirectory()

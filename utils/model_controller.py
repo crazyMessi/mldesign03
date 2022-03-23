@@ -52,10 +52,14 @@ def model_selector(opt):
                       }
     discriminator_list = {'Discriminator': Discriminator()}
 
-    while model_name not in valid_model_name:
-        print('未输入正确模型名 请输入正确模型名\n')
-        print(valid_model_name)
-        model_name = input()
+    founded = False
+    while not founded:
+        for n in valid_model_name:
+            founded = founded | (model_name.find(n) >= 0)
+        if not founded:
+            print('未输入正确模型名 请输入正确模型名\n')
+            print(valid_model_name)
+            model_name = input()
 
     discriminator = generator = []
     if model_name.find('AutoEncoderGen') >= 0:
