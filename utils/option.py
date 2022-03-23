@@ -62,9 +62,7 @@ class Train_opt:
 
     # 命名可能需要的文件夹
     def mk_use_dirs(self):
-        print('创建 ' + self.get_img_root())
-        print('创建 ' + self.get_log_root())
-        print('创建 ' + self.get_model_root())
+        print('创建 ' + self.get_root())
         os.makedirs(self.get_log_root(), exist_ok=True)
         os.makedirs(self.get_img_root(), exist_ok=True)
         os.makedirs(self.get_model_root(), exist_ok=True)
@@ -89,7 +87,7 @@ class Test_opt:
             print("未指定合法目录,请手动选择待测试模型位置")
             had_set = False
 
-        while self.opt['model_name'] not in valid_model_name or not had_set:
+        while self.opt['model_name'] not in valid_model_name and not had_set:
             root = tk.Tk()
             root.withdraw()
             model_dir = filedialog.askdirectory()
@@ -120,8 +118,7 @@ class Test_opt:
         return self.mode_dir
 
     def mk_use_dirs(self):
-        print('创建 ' + self.get_img_root())
-        print('创建 ' + self.get_log_root())
+        print('创建 ' + self.get_root())
         os.makedirs(self.get_log_root(), exist_ok=True)
         os.makedirs(self.get_img_root(), exist_ok=True)
 

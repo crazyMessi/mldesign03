@@ -13,6 +13,7 @@ from utils.option import *
 from utils.model_controller import model_selector
 
 # 获取测试参数
+
 my_opt = get_test_opt()
 cuda = True if torch.cuda.is_available() else False
 data_path = my_opt['data_path']
