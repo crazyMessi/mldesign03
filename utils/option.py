@@ -62,9 +62,7 @@ class Train_opt:
 
     # 命名可能需要的文件夹
     def mk_use_dirs(self):
-        print('创建 ' + self.get_img_root())
-        print('创建 ' + self.get_log_root())
-        print('创建 ' + self.get_model_root())
+        print('创建 ' + self.get_root())
         os.makedirs(self.get_log_root(), exist_ok=True)
         os.makedirs(self.get_img_root(), exist_ok=True)
         os.makedirs(self.get_model_root(), exist_ok=True)
@@ -120,8 +118,7 @@ class Test_opt:
         return self.mode_dir
 
     def mk_use_dirs(self):
-        print('创建 ' + self.get_img_root())
-        print('创建 ' + self.get_log_root())
+        print('创建 ' + self.get_root())
         os.makedirs(self.get_log_root(), exist_ok=True)
         os.makedirs(self.get_img_root(), exist_ok=True)
 
