@@ -192,7 +192,7 @@ class ResnetGenerator(nn.Module):
     """
 
     def __init__(self, in_channels=3, out_channels=3, ngf=64, norm_layer=nn.BatchNorm2d, dropout_rate=0, n_blocks=6,
-                 padding_type='reflect'):
+                 padding_type='reflect', n_downsampling = 2):
         """Construct a Resnet-based generator
 
         Parameters:
@@ -213,7 +213,6 @@ class ResnetGenerator(nn.Module):
                  norm_layer(ngf),
                  nn.ReLU(True)]
 
-        n_downsampling = 2
         for i in range(n_downsampling):  # add downsampling layers
             mult = 2 ** i
             model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=1, bias=use_bias),
