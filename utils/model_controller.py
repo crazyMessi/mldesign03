@@ -50,7 +50,7 @@ def model_selector(opt):
                                                       out_channels=opt['channels']),
                       'Dump': DumpGenerator()
                       }
-    discriminator_list = {'Discriminator': Discriminator()}
+    discriminator_list = {'Discriminator': Discriminator(in_channels=opt['channels'])}
 
     founded = False
     while not founded:
@@ -88,7 +88,7 @@ def model_selector(opt):
         model = AutoEncoderGen(train_opt=opt, generator=generator, g_loss_func=g_loss_func)
     else:
         # 这是一个对抗神经网络
-        model = GAN(train_opt=opt, generator=generator, g_loss_func=g_loss_func)
+        model = GAN(train_opt=opt, generator=generator, g_loss_func=g_loss_func, discriminator=discriminator)
 
     # if model_name == 'Dump':
     #     model = Dump(generator_list['Dump'])
