@@ -136,8 +136,8 @@ def get_base_parse():
     # 为了找到训练模型参数地址，要与train.py中model_name参数一致
     parser.add_argument('--model_name', type=str, default="null", help='模型名')
     parser.add_argument('--dropout', type=int, default=1, help='是否使用dropout')
-    parser.add_argument('--res_learn', type=int, default=1, help='是否使用残差学习')
     parser.add_argument('--channels', type=int, default=3, help='number of image channels')
+    parser.add_argument('--n_block', type=int, default=6, help='ResGenerator中的block数量')
 
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
     parser.add_argument('--lrD', type=float, default=1e-4, help='adam: learning rate')

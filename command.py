@@ -4,11 +4,12 @@ ep = 1
 lrGs = [0.0001]
 bss = [80]
 lrD_rate_s = [1]
-autogen_name = ['AutoEncoderGen', 'UNetGen', 'ResGen']
-gan_name = ['GAN', 'pic2pic', 'ResGAN']
+autogen_name = ['ResGen']
+# gan_name = ['GAN', 'pic2pic', 'ResGAN']
 g_loss_func = ['L1', 'fixed_L1']
 dropout = [0, 1]
 channels = [1, 3]
+res_block = [6,7]
 
 
 data_path = 'fontdata'
