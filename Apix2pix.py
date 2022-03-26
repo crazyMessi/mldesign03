@@ -1,15 +1,14 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-ep = 1002
-lrGs = [0.005,0.001,0.002]
-bss = [8, 4, 20]
+ep = 200
+lrGs = [0.001]
+bss = [8,4,20]
 lrD_rate_s = [1]
 #autogen_name = ['AutoEncoderGen', 'UNetGen', 'ResGen']
-gan_name = ['pic2pic']
+gan_name = ['pic2pic_down5']
 g_loss_func = ['fixed_L1']
-dropout = [0, 1]
+dropout = [1]
 channels = [1]
-wight_pic = [10]
+wight_pic = [50]
 
 
 data_path = 'fontdata'

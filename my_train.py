@@ -21,7 +21,7 @@ model_name = train_opt['model_name']
 if train_opt['if_fitlog']:
     import fitlog
 
-    log_name = 'logs/'
+    log_name = 'logs/test'
     os.makedirs(log_name, exist_ok=True)
     fitlog.set_log_dir(log_name)  # 设置log文件夹为'logs/', fitlog在每次运行的时候会默认以时间戳的方式在里面生成新的log
     fitlog.add_hyper(train_opt.get_fitlog_hyper())

@@ -1,13 +1,13 @@
 import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-ep = 1001
-lrGs = [0.001,0.002,0.005,0.01]
-bss = [40, 8, 4]
+ep = 200
+lrGs = [0.001]
+bss = [8]
 lrD_rate_s = [1]
 autogen_name = ['ResGen']
 # gan_name = ['GAN', 'pic2pic', 'ResGAN']
-g_loss_func = ['fixed_L1','L1']
-dropout = [0, 1]
+g_loss_func = ['fixed_L1']
+dropout = [1]
 channels = [1]
 
 
