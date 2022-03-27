@@ -1,11 +1,11 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 ep = 202
 lrGs = [0.001]
 bss = [8]
 lrD_rate_s = [1]
 #autogen_name = ['AutoEncoderGen', 'UNetGen', 'ResGen']
-gan_name = ['ResGAN_origin']
+gan_name = ['UResGAN']
 g_loss_func = ['fixed_L1']
 dropout = [1]
 channels = [1]

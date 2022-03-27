@@ -1,6 +1,6 @@
 from myModel import *
 
-valid_model_name = ['AutoEncoderGen', 'UNetGen', 'ResGen', 'GAN', 'pic2pic', 'ResGAN']
+valid_model_name = ['AutoEncoderGen', 'UNetGen', 'ResGen', 'UResGen', 'GAN', 'pic2pic', 'ResGAN', 'UResGAN']
 
 
 # 修正的生成器loss
@@ -48,6 +48,8 @@ def model_selector(opt):
                                                  out_channels=opt['channels']),
                       'ResGenerator': ResnetGenerator(dropout_rate=dropout, in_channels=opt['channels'],
                                                       out_channels=opt['channels'], n_blocks=opt['n_block']),
+                      'UResGen': UResGen(dropout_rate=dropout, in_channels=opt['channels'],
+                                                      out_channels=opt['channels'], n_blocks=opt['n_block']),
                       'Dump': DumpGenerator()
                       }
     discriminator_list = {'Discriminator': Discriminator(in_channels=opt['channels'])}
@@ -77,10 +79,16 @@ def model_selector(opt):
         discriminator = discriminator_list['Discriminator']
 
     if model_name.find('ResGen') >= 0:
-        generator = generator_list['ResGenerator']
+        if model_name.find('UResGen') >= 0:
+            generator = generator_list['UResGen']        
+        else:
+            generator = generator_list['ResGenerator']
 
     if model_name.find('ResGAN') >= 0:
-        generator = generator_list['ResGenerator']
+        if model_name.find('UResGAN') >= 0:
+            generator = generator_list['UResGen']        
+        else:
+            generator = generator_list['ResGenerator']
         discriminator = discriminator_list['Discriminator']
 
     if not discriminator and generator:
@@ -94,3 +102,4 @@ def model_selector(opt):
     #     model = Dump(generator_list['Dump'])
 
     return model
+

@@ -7,6 +7,7 @@ from dataset import *
 import progressbar
 import utils.option as option
 from utils.model_controller import *
+torch.autograd.set_detect_anomaly(True)
 
 pro = progressbar.ProgressBar()
 
