@@ -120,7 +120,6 @@ class GeneratorUNet(nn.Module):
             # 如果不使用下采样的信息补充 则反卷积层输出的通道数翻倍 这样这次上采样输出的层数就和原来保持一致了
             # 曾经尝试直接复制一个 但loss存在差异
             out_channels_rate = 2
-
         self.up1 = UNetUp(512, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
         self.up2 = UNetUp(1024, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
         self.up3 = UNetUp(1024, 256 * out_channels_rate, if_crop=if_crop)
@@ -160,28 +159,14 @@ class UnetSkipConnectionBlock(nn.Module):
         X -------------------identity----------------------
         |-- downsampling -- |submodule| -- upsampling --|
     """
-
     def __init__(self, before_exit = 3, before_enter = 3, in_channels=None,
                  submodule=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d, use_dropout=False):
-        """Construct a Unet submodule with skip connections.
-
-        Parameters:
-            outer_nc (int) -- the number of filters in the outer conv layer
-            inner_nc (int) -- the number of filters in the inner conv layer
-            input_nc (int) -- the number of channels in input images/features
-            submodule (UnetSkipConnectionBlock) -- previously defined submodules
-            outermost (bool)    -- if this module is the outermost module
-            innermost (bool)    -- if this module is the innermost module
-            norm_layer          -- normalization layer
-            use_dropout (bool)  -- if use dropout layers.
-        """
         super(UnetSkipConnectionBlock, self).__init__()
         self.outermost = outermost
-        use_bias = norm_layer == nn.InstanceNorm2d
         if in_channels is None:
             in_channels = before_exit
         downconv = nn.Conv2d(in_channels, before_enter, kernel_size=4,
-                             stride=2, padding=1, bias=use_bias)
+                             stride=2, padding=1)
         downrelu = nn.ReLU(inplace=True)
         downnorm = norm_layer(before_enter)
         uprelu = nn.ReLU(True)
@@ -191,8 +176,7 @@ class UnetSkipConnectionBlock(nn.Module):
             # 修改一：innermost中间也可能有子模型
             # 修改二：CBR结构
             upconv = nn.ConvTranspose2d(before_enter, before_exit,
-                                        kernel_size=4, stride=2,
-                                        padding=1, bias=use_bias)
+                                        kernel_size=4, stride=2, padding=1)
             down = [downconv,downnorm,downrelu]
             up = [upconv, upnorm,uprelu]
             if submodule:
@@ -201,8 +185,7 @@ class UnetSkipConnectionBlock(nn.Module):
                 model = down  +  up
         else:
             upconv = nn.ConvTranspose2d(before_enter * 2, before_exit,
-                                        kernel_size=4, stride=2,
-                                        padding=1, bias=use_bias)
+                                        kernel_size=4, stride=2, padding=1)
             down = [downconv,downnorm,downrelu]
             up = [upconv, upnorm,uprelu]
 
@@ -371,9 +354,6 @@ class Discriminator(nn.Module):
         # by channels to produce input
         img_input = torch.cat((img_A, img_B), 1)
         return self.model(img_input)
-
-    # def loss(self, pred, real):
-    #     return self.loss_fun(pred, real)
 
 
 # ===================================

@@ -18,6 +18,9 @@ test = True
 
 data_path = train_opt['data_path']
 model_name = train_opt['model_name']
+# 设置测试lossfun类型(不影响训练)。如果设成none则使用生成器内部的loss
+test_loss_func = fixed_loss_G()
+
 
 if train_opt['if_fitlog']:
     import fitlog
@@ -80,7 +83,10 @@ def cal_test_loss():
     real_A = imgs['B'].type(Tensor)
     real_B = imgs['A'].type(Tensor)
     fake_B = model.generator(real_A)
-    test_lose_pixel = model.g_loss_func(fake_B, real_B).detach()
+    if test_loss_func:
+        test_lose_pixel = test_loss_func(fake_B, real_B).detach()
+    else:
+        test_lose_pixel = model.g_loss_func(fake_B, real_B).detach()
     return {'test_loss_pixel': test_lose_pixel}
 
 
@@ -129,6 +135,6 @@ pro.finish()
 if test:
     test_path = sys.path[0] + '/test.py'
     os.system('python \"%s\" --model_dir \"%s\" --model_name %s --data_path \"%s\"'
-              ' --dropout %d --channels %d --n_block %d'
+              ' --dropout %d --channels %d --n_block %d --n_downsampling %d'
               % (test_path, train_opt.get_model_root(), model_name, data_path, train_opt['dropout'],
-                 train_opt['channels'],train_opt['n_block']))
+                 train_opt['channels'],train_opt['n_block'],train_opt['n_downsampling']))

@@ -1,5 +1,4 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 ep = 1
 lrGs = [0.0001,0.0002,0.005]
 bss = [80]

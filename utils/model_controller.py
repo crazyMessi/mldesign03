@@ -14,6 +14,8 @@ class fixed_loss_G(nn.Module):
         loss_G = self.loss_G(1 - x, 1 - y)
         return loss_G / (torch.mean(1 - y))
 
+MSE = torch.nn.MSELoss()
+
 
 # 为网络参数赋正态分布的初值
 def weights_init_normal(m):
@@ -38,7 +40,7 @@ def weights_init_zero(m):
 # 根据opt选取模型
 def model_selector(opt):
     model_name = opt['model_name']
-    g_loss_func_list = {'L1': torch.nn.L1Loss(), 'fixed_L1': fixed_loss_G()}
+    g_loss_func_list = {'L1': torch.nn.L1Loss(), 'fixed_L1': fixed_loss_G(), 'MSE': torch.nn.MSELoss()}
     g_loss_func = g_loss_func_list[opt['g_loss_func']]
     dropout = 0.5 if opt['dropout'] > 0 else 0
 
@@ -46,7 +48,7 @@ def model_selector(opt):
                                             out_channels=opt['channels']),
                       'AutoEncoder': AutoEncoder(dropout_rate=dropout, in_channels=opt['channels'],
                                                  out_channels=opt['channels']),
-                      'ResGenerator': ResnetGenerator(dropout_rate=dropout, in_channels=opt['channels'],
+                      'ResGenerator': ResnetGenerator(dropout_rate=dropout, in_channels=opt['channels'],n_downsampling=opt['n_downsampling'],
                                                       out_channels=opt['channels'], n_blocks=opt['n_block']),
                       'UResGen': UResGen(dropout_rate=dropout, in_channels=opt['channels'],
                                                       out_channels=opt['channels'], n_blocks=opt['n_block']),

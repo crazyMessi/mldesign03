@@ -10,10 +10,12 @@ from torchvision.utils import save_image
 import myModel
 from dataset import *
 from utils.option import *
-from utils.model_controller import model_selector
+from utils.model_controller import *
+
+# 设置损失函数(仅用于查看) 设为none则使用生成器的
+view_g_loss_func = fixed_loss_G()
 
 # 获取测试参数
-
 my_opt = get_test_opt()
 cuda = True if torch.cuda.is_available() else False
 data_path = my_opt['data_path']
@@ -57,7 +59,10 @@ for j in range(len(filename)):
                        + '/%s.png' % ('img' + str(i) + '_' + filename[j].split('.')[0]), nrow=10,
                        normalize=True)
             # save_image(target, my_opt.get_img_root() + '/%s.png' % str(i), nrow=10, normalize=True)
-            loss_test[j][i] = (model.g_loss_func(fake_B, target)).item()
+            if view_g_loss_func:
+                loss_test[j][i] = (view_g_loss_func(fake_B, target)).item()
+            else:
+                loss_test[j][i] = (model.g_loss_func(fake_B, target)).item()
 
         if my_opt['if_remove'] > 0:
             os.remove(model_location)

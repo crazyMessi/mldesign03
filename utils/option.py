@@ -56,7 +56,7 @@ class Train_opt:
 
     def get_fitlog_hyper(self):
         k = ['lrG', 'lrD', 'bs', 'ep', 'lrG_d', 'lrD_d', 'model_name', 'b1', 'b2', 'weight_pic',
-             'g_loss_func', 'channels', 'res_learn', 'dropout']
+             'g_loss_func', 'channels','dropout', 'n_downsampling']
         v = {key: value for key, value in self.opt.items() if key in k}
         return v
 
@@ -136,8 +136,10 @@ def get_base_parse():
     # 为了找到训练模型参数地址，要与train.py中model_name参数一致
     parser.add_argument('--model_name', type=str, default="null", help='模型名')
     parser.add_argument('--dropout', type=int, default=1, help='是否使用dropout')
-    parser.add_argument('--channels', type=int, default=3, help='number of image channels')
+    parser.add_argument('--channels', type=int, default=1, help='number of image channels')
     parser.add_argument('--n_block', type=int, default=6, help='ResGenerator中的block数量')
+    parser.add_argument('--n_downsampling', type=int, default=2, help='ResGenerator下采样次数')
+
 
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
     parser.add_argument('--lrD', type=float, default=1e-4, help='adam: learning rate')
@@ -145,7 +147,7 @@ def get_base_parse():
     parser.add_argument('--ep', type=int, default=200, help='number of epochs of training')
     parser.add_argument('--lrG_d', type=int, default=90, help='G lr down')
     parser.add_argument('--lrD_d', type=int, default=10, help='D lr down')
-    parser.add_argument('--g_loss_func', type=str, default='L1', help='L1表示L1;fixed_L1表示修正的L1')
+    parser.add_argument('--g_loss_func', type=str, default='fixed_L1', help='L1表示L1;fixed_L1表示修正的L1')
     parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
     parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
     parser.add_argument('--weight_pic', type=float, default=10, help='计算生成器loss时,pic_loss的比例')
