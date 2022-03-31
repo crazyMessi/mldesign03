@@ -54,7 +54,7 @@ def model_selector(opt):
                                                       out_channels=opt['channels'], n_blocks=opt['n_block']),
                       'Dump': DumpGenerator()
                       }
-    discriminator_list = {'Discriminator': Discriminator(in_channels=opt['channels'])}
+    discriminator_list = {'pixel': PixelDiscriminator(in_channels=opt['channels']),'patch':NLayerDiscriminator(in_channels=opt['channels']*2)}
 
     founded = False
     while not founded:
@@ -71,14 +71,14 @@ def model_selector(opt):
 
     if model_name.find('GAN') >= 0:
         generator = generator_list['AutoEncoder']
-        discriminator = discriminator_list['Discriminator']
+        discriminator = discriminator_list[opt['discriminator']]
 
     if model_name.find('UNet') >= 0:
         generator = generator_list['UNet']
 
     if model_name.find('pic2pic') >= 0:
         generator = generator_list['UNet']
-        discriminator = discriminator_list['Discriminator']
+        discriminator = discriminator_list[opt['discriminator']]
 
     if model_name.find('ResGen') >= 0:
         if model_name.find('UResGen') >= 0:
@@ -91,7 +91,7 @@ def model_selector(opt):
             generator = generator_list['UResGen']        
         else:
             generator = generator_list['ResGenerator']
-        discriminator = discriminator_list['Discriminator']
+        discriminator = discriminator_list[opt['discriminator']]
 
     if not discriminator and generator:
         # 这是一个自编码器

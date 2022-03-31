@@ -139,6 +139,7 @@ def get_base_parse():
     parser.add_argument('--channels', type=int, default=1, help='number of image channels')
     parser.add_argument('--n_block', type=int, default=6, help='ResGenerator中的block数量')
     parser.add_argument('--n_downsampling', type=int, default=2, help='ResGenerator下采样次数')
+    parser.add_argument('--discriminator',type=str,default='pixel',help='判断器类型')
 
 
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
