@@ -11,7 +11,7 @@ from utils.my_optimizer import *
 class ResnetBlock(nn.Module):
     """Define a Resnet block"""
 
-    def __init__(self, channels, padding_type, norm_layer, dropout, use_bias):
+    def __init__(self, channels, padding_type = 'replicate', norm_layer = nn.BatchNorm2d, dropout = False, use_bias = False):
         """Initialize the Resnet block
 
         A resnet block is a conv block with skip connections
@@ -22,7 +22,7 @@ class ResnetBlock(nn.Module):
         super(ResnetBlock, self).__init__()
         self.conv_block = self.build_conv_block(channels, padding_type, norm_layer, dropout, use_bias)
 
-    def build_conv_block(self, dim, padding_type, norm_layer, dropout, use_bias):
+    def build_conv_block(self, dim, padding_type = 'replicate', norm_layer = nn.BatchNorm2d, dropout = False, use_bias = False):
         """Construct a convolutional block.
 
         Parameters:
@@ -328,9 +328,9 @@ class UResGen(nn.Module):
         return self.model(source)
 
 
-class Discriminator(nn.Module):
+class PixelDiscriminator(nn.Module):
     def __init__(self, in_channels=3):
-        super(Discriminator, self).__init__()
+        super(PixelDiscriminator, self).__init__()
 
         def discriminator_block(in_filters, out_filters, normalization=True):
             """Returns downsampling layers of each discriminator block"""
@@ -356,11 +356,51 @@ class Discriminator(nn.Module):
         return self.model(img_input)
 
 
+class NLayerDiscriminator(nn.Module):
+    """Defines a PatchGAN discriminator"""
+
+    def __init__(self, in_channels, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d):
+
+        super(NLayerDiscriminator, self).__init__()
+        
+        kw = 4
+        padw = 1
+        sequence = [nn.Conv2d(in_channels, ndf, kernel_size=kw, stride=2, padding=padw), nn.LeakyReLU(0.2, True)]
+        nf_mult = 1
+        nf_mult_prev = 1
+        for n in range(1, n_layers):  # gradually increase the number of filters
+            nf_mult_prev = nf_mult
+            nf_mult = min(2 ** n, 8)
+            sequence += [
+                nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult, kernel_size=kw, stride=2, padding=padw),
+                norm_layer(ndf * nf_mult),
+                nn.LeakyReLU(0.2, True)
+            ]
+
+        nf_mult_prev = nf_mult
+        nf_mult = min(2 ** n_layers, 8)
+        sequence += [
+            nn.Conv2d(ndf * nf_mult_prev, ndf * nf_mult, kernel_size=kw, stride=1, padding=padw),
+            norm_layer(ndf * nf_mult),
+            nn.LeakyReLU(0.2, True)
+        ]
+
+        sequence += [nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]  # output 1 channel prediction map
+        self.model = nn.Sequential(*sequence)
+
+    def forward(self, img_A, img_B):
+        # Concatenate image and condition image
+        # by channels to produce input
+        img_input = torch.cat((img_A, img_B), 1)
+        return self.model(img_input)
+
+
+
 # ===================================
 #           面向训练、测试的模型
 # ===================================
 class GAN(nn.Module):
-    def __init__(self, train_opt=None, generator=GeneratorUNet(), discriminator=Discriminator(),
+    def __init__(self, train_opt=None, generator=GeneratorUNet(), discriminator=PixelDiscriminator(),
                  g_loss_func=torch.nn.L1Loss(), d_loss_func=torch.nn.MSELoss()):
         super(GAN, self).__init__()
         self.generator = generator
@@ -374,6 +414,7 @@ class GAN(nn.Module):
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrD_d'] * train_opt['dataloader_length'])
             self.train_opt = train_opt
+
         self.g_loss_func = g_loss_func
         self.d_loss_func = d_loss_func
 

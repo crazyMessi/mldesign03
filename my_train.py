@@ -135,6 +135,6 @@ pro.finish()
 if test:
     test_path = sys.path[0] + '/test.py'
     os.system('python \"%s\" --model_dir \"%s\" --model_name %s --data_path \"%s\"'
-              ' --dropout %d --channels %d --n_block %d --n_downsampling %d'
+              ' --dropout %d --channels %d --n_block %d --n_downsampling %d --discriminator %s'
               % (test_path, train_opt.get_model_root(), model_name, data_path, train_opt['dropout'],
-                 train_opt['channels'],train_opt['n_block'],train_opt['n_downsampling']))
+                 train_opt['channels'],train_opt['n_block'],train_opt['n_downsampling'],train_opt['discriminator']))
