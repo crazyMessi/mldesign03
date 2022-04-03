@@ -142,6 +142,7 @@ def get_base_parse():
     parser.add_argument('--crop_weight', type=float, default=-0.99,help='skip connection拼接权重是否可训练 小于零表示不可训练 大于零则作为crop_weight初值')
     parser.add_argument('--discriminator',type=str,default='pixel',help='判断器类型')
     parser.add_argument('--residual_unet', type= int, default= -1, help='UNet是否使用残差学习')
+    parser.add_argument('--dg_rate',type= float,default=1, help='判别器迭代次数/生成器迭代次数')
 
 
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
@@ -151,6 +152,7 @@ def get_base_parse():
     parser.add_argument('--lrG_d', type=int, default=90, help='G lr down')
     parser.add_argument('--lrD_d', type=int, default=10, help='D lr down')
     parser.add_argument('--g_loss_func', type=str, default='fixed_L1', help='L1表示L1;fixed_L1表示修正的L1')
+    parser.add_argument('--d_loss_func', type=str, default='MSE',help='判别器损失函数')
     parser.add_argument('--b1', type=float, default=0.5, help='adam: decay of first order momentum of gradient')
     parser.add_argument('--b2', type=float, default=0.999, help='adam: decay of first order momentum of gradient')
     parser.add_argument('--weight_pic', type=float, default=10, help='计算生成器loss时,pic_loss的比例')

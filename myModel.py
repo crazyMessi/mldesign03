@@ -454,7 +454,7 @@ class GAN(nn.Module):
             self.optimizer_G.zero_grad()
             loss_G.backward()
             self.optimizer_G.step()
-            return loss_G, 0, loss_sVg, loss_pixel
+            return loss_G, 0, loss_sVg, loss_pixel, 0
         # 分辨源图像和目标图像
         loss_real = self.d_loss_func(source_target, valid)
         # 分辨源图像和生成图像
@@ -465,12 +465,12 @@ class GAN(nn.Module):
             self.optimizer_D.zero_grad()
             loss_D.backward()
             self.optimizer_D.step()
-            return 0, loss_D, 0, 0
+            return 0, loss_D, 0, 0, 0
         return loss_G, loss_D, loss_sVg, loss_pixel,loss_fake
 
     def step(self, source, target):
         generate, source_generate, source_target, source_generate2 = self(source, target)
-        loss_G, _, loss_sVg, loss_pixel = self.loss(generate, target, source_generate, source_target,
+        loss_G, _, loss_sVg, loss_pixel, _ = self.loss(generate, target, source_generate, source_target,
                                                     source_generate2, if_G_backward=True)
         _, loss_D, _, _, loss_fake = self.loss(generate, target, source_generate, source_target,
                                     source_generate2, if_D_backward=True)

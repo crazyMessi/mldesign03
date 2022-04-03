@@ -131,7 +131,8 @@ for epoch in range(train_opt['epoch'], train_opt['ep']):
     if epoch % 50 == 1 or epoch == train_opt['ep'] - 1:
         torch.save(model.state_dict(), '%s/%s_%d.pth' % (train_opt.get_model_root(), model_name, epoch))
 pro.finish()
-fitlog.finish()
+if fitlog:
+    fitlog.finish()
 if test:
     test_path = sys.path[0] + '/test.py'
     os.system('python \"%s\" --model_dir \"%s\" --model_name %s --data_path \"%s\"'
