@@ -55,9 +55,9 @@ class Train_opt:
         return v
 
     def get_fitlog_hyper(self):
-        k = ['lrG', 'lrD', 'bs', 'ep', 'lrG_d', 'lrD_d', 'model_name', 'b1', 'b2', 'weight_pic',
-             'g_loss_func', 'channels','dropout', 'n_downsampling']
-        v = {key: value for key, value in self.opt.items() if key in k}
+        # fitlog可见的超参(黑名单机制,后续增加参数更方便)
+        k = ['epoch','n_cpu','img_width','img_height','sample_interval','if_remove','data_path','checkpoint_interval','if_fitlog','if_test','model_dir','model_mode','b1','b2']
+        v = {key: value for key, value in self.opt.items() if key not in k}
         return v
 
     # 命名可能需要的文件夹
@@ -139,7 +139,9 @@ def get_base_parse():
     parser.add_argument('--channels', type=int, default=1, help='number of image channels')
     parser.add_argument('--n_block', type=int, default=6, help='ResGenerator中的block数量')
     parser.add_argument('--n_downsampling', type=int, default=2, help='ResGenerator下采样次数')
+    parser.add_argument('--crop_weight', type=float, default=-0.99,help='skip connection拼接权重是否可训练 小于零表示不可训练 大于零则作为crop_weight初值')
     parser.add_argument('--discriminator',type=str,default='pixel',help='判断器类型')
+    parser.add_argument('--residual_unet', type= int, default= -1, help='UNet是否使用残差学习')
 
 
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')

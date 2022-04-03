@@ -2,7 +2,7 @@ import os
 ep = 200
 lrGs = [0.002]
 bss = [8]
-model_name = ['UNetGen_origin']
+model_name = ['fUNetGen']
 g_loss_func = ['fixed_L1']
 
 

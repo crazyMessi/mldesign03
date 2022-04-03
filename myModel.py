@@ -2,6 +2,7 @@ import re
 from turtle import forward
 import torch
 from torch import nn
+import torchvision
 from utils.my_optimizer import *
 
 
@@ -85,7 +86,7 @@ class UNetDown(nn.Module):
 
 
 class UNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True):
+    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, crop_weight = -0.99):
         super(UNetUp, self).__init__()
         layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1, bias=False),
                   nn.InstanceNorm2d(out_size),
@@ -94,11 +95,15 @@ class UNetUp(nn.Module):
             layers.append(nn.Dropout(dropout))
         self.model = nn.Sequential(*layers)
         self.if_crop = if_crop
+        if crop_weight>=0:
+            self.crop_weight = nn.Parameter(torch.tensor(crop_weight),requires_grad=True)
+        else:
+            self.crop_weight = nn.Parameter(torch.tensor(abs(crop_weight)),requires_grad=False)
 
     def forward(self, x, skip_input):
         x = self.model(x)
         if self.if_crop > 0:
-            x = torch.cat((x, skip_input), 1)
+            x = torch.cat((x, skip_input*self.crop_weight), 1)
         return x
 
 
@@ -106,7 +111,7 @@ class UNetUp(nn.Module):
 #              子模型
 # ===================================
 class GeneratorUNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5):
+    def __init__(self, in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5,crop_weight = -0.99):
         super(GeneratorUNet, self).__init__()
         self.down1 = UNetDown(in_channels, 64, normalize=False)
         self.down2 = UNetDown(64, 128)
@@ -120,11 +125,11 @@ class GeneratorUNet(nn.Module):
             # 如果不使用下采样的信息补充 则反卷积层输出的通道数翻倍 这样这次上采样输出的层数就和原来保持一致了
             # 曾经尝试直接复制一个 但loss存在差异
             out_channels_rate = 2
-        self.up1 = UNetUp(512, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
-        self.up2 = UNetUp(1024, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop)
-        self.up3 = UNetUp(1024, 256 * out_channels_rate, if_crop=if_crop)
-        self.up4 = UNetUp(512, 128 * out_channels_rate, if_crop=if_crop)
-        self.up5 = UNetUp(256, 64 * out_channels_rate, if_crop=if_crop)
+        self.up1 = UNetUp(512, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop,crop_weight = crop_weight)
+        self.up2 = UNetUp(1024, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop,crop_weight = crop_weight)
+        self.up3 = UNetUp(1024, 256 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight)
+        self.up4 = UNetUp(512, 128 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight)
+        self.up5 = UNetUp(256, 64 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight)
 
         self.final = nn.Sequential(
             nn.Upsample(scale_factor=2),
@@ -144,9 +149,9 @@ class GeneratorUNet(nn.Module):
 
         u1 = self.up1(d6, d5)  # u1:[1,1024,2,2]
         u2 = self.up2(u1, d4)  # u2:[1,1024,4,4]
-        u3 = self.up3(u2, d3)  # u3:[1,1024,8,8]
-        u4 = self.up4(u3, d2)  # u4:[1,1024,16,16]
-        u5 = self.up5(u4, d1)  # u5:[1,512,32,32]
+        u3 = self.up3(u2, d3)  # u3:[1,512,8,8]
+        u4 = self.up4(u3, d2)  # u4:[1,256,16,16]
+        u5 = self.up5(u4, d1)  # u5:[1,128,32,32]
         return self.final(u5)
 
     # def loss(self, generate, target):
@@ -160,9 +165,14 @@ class UnetSkipConnectionBlock(nn.Module):
         |-- downsampling -- |submodule| -- upsampling --|
     """
     def __init__(self, before_exit = 3, before_enter = 3, in_channels=None,
-                 submodule=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d, use_dropout=False):
+                 submodule=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d, use_dropout=False, crop_weight = -0.99):
         super(UnetSkipConnectionBlock, self).__init__()
         self.outermost = outermost
+        if crop_weight>=0:
+            self.crop_weight = nn.Parameter(torch.tensor(crop_weight),requires_grad=True)
+        else:
+            self.crop_weight = nn.Parameter(torch.tensor(abs(crop_weight)),requires_grad=False)
+
         if in_channels is None:
             in_channels = before_exit
         downconv = nn.Conv2d(in_channels, before_enter, kernel_size=4,
@@ -274,6 +284,7 @@ class ResnetGenerator(nn.Module):
 
             model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, dropout=dropout_rate,
                                   use_bias=use_bias)]
+            # TODO 使用预训练resnet 
 
         for i in range(n_downsampling):  # add upsampling layers
             mult = 2 ** (n_downsampling - i)
@@ -298,7 +309,6 @@ class ResnetGenerator(nn.Module):
 class UResGen(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, ngf=64, norm_layer=nn.BatchNorm2d, dropout_rate=0, n_blocks=6,
                  padding_type='reflect'):
-        assert (n_blocks >= 0)
         super(UResGen,self).__init__()
         use_bias = norm_layer == nn.InstanceNorm2d
    
@@ -310,10 +320,17 @@ class UResGen(nn.Module):
         res_blocks = []
         n_downsampling = 2
         mult = 2 ** n_downsampling # 进入res blocks时图像层数增加的倍数 实际就是下采样的倍数
-        for i in range(n_blocks):  # 堆叠n个res block
-            res_blocks += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, dropout=dropout_rate,
-                                  use_bias=use_bias)]
-        res_blocks = nn.Sequential(*res_blocks)
+        if n_blocks>0:
+            for i in range(n_blocks):  # 堆叠n个res block
+                res_blocks += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, dropout=dropout_rate,
+                                    use_bias=use_bias)]
+            res_blocks = nn.Sequential(*res_blocks)
+        else:
+            if n_blocks == -18:
+                res_blocks = torchvision.models.resnet18()
+            if n_blocks == -34:
+                res_blocks = torchvision.models.resnet34()
+
 
         unet_block = UnetSkipConnectionBlock(before_exit=ngf * 2, before_enter = ngf * 4, submodule=res_blocks, norm_layer=norm_layer, innermost=True)
     
@@ -449,17 +466,17 @@ class GAN(nn.Module):
             loss_D.backward()
             self.optimizer_D.step()
             return 0, loss_D, 0, 0
-        return loss_G, loss_D, loss_sVg, loss_pixel
+        return loss_G, loss_D, loss_sVg, loss_pixel,loss_fake
 
     def step(self, source, target):
         generate, source_generate, source_target, source_generate2 = self(source, target)
         loss_G, _, loss_sVg, loss_pixel = self.loss(generate, target, source_generate, source_target,
                                                     source_generate2, if_G_backward=True)
-        _, loss_D, _, _ = self.loss(generate, target, source_generate, source_target,
+        _, loss_D, _, _, loss_fake = self.loss(generate, target, source_generate, source_target,
                                     source_generate2, if_D_backward=True)
 
         loss_dic = {'loss_G': loss_G.item(), 'loss_D': loss_D.item(), 'loss_pixel': loss_pixel.item(),
-                    'loss_sVg': loss_sVg.item()}
+                    'loss_sVg': loss_sVg.item(),'loss_fake':loss_fake}
         return loss_dic
 
 

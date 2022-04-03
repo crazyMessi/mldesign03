@@ -37,6 +37,9 @@ def weights_init_zero(m):
         torch.nn.init.constant_(m.bias.data, 0.0)
 
 
+# def weights_init_one(m):
+#     torch.nn.init.ones_
+
 # 根据opt选取模型
 def model_selector(opt):
     model_name = opt['model_name']
