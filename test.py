@@ -66,7 +66,7 @@ for j in range(len(filename)):
 
         if my_opt['if_remove'] > 0:
             os.remove(model_location)
-        # 获得ep数
+        # 获得ep数 不稳定
         ep_count = re.findall(r"_\d*.", filename[j])
         ep_count = re.findall(r"\d+", ep_count[-1])
         ep.append(ep_count[-1])
