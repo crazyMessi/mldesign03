@@ -31,9 +31,9 @@ def weights_init_normal(m):
 def weights_init_zero(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        torch.nn.init.zeros_(m.weight.data, 0.0, 0.02)
+        torch.nn.init.zeros_(m.weight.data)
     elif classname.find('BatchNorm2d') != -1:
-        torch.nn.init.zeros_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.zeros_(m.weight.data)
         torch.nn.init.constant_(m.bias.data, 0.0)
 
 
@@ -47,14 +47,14 @@ def model_selector(opt):
     g_loss_func = g_loss_func_list[opt['g_loss_func']]
     dropout = 0.5 if opt['dropout'] > 0 else 0
 
-    generator_list = {'UNet': GeneratorUNet(dropout_rate=dropout, in_channels=opt['channels'],
-                                            out_channels=opt['channels']),
-                      'AutoEncoder': AutoEncoder(dropout_rate=dropout, in_channels=opt['channels'],
+    generator_list = {'AutoEncoder': AutoEncoder(dropout_rate=dropout, in_channels=opt['channels'],
                                                  out_channels=opt['channels']),
                       'ResGenerator': ResnetGenerator(dropout_rate=dropout, in_channels=opt['channels'],n_downsampling=opt['n_downsampling'],
                                                       out_channels=opt['channels'], n_blocks=opt['n_block']),
-                      'UResGen': UResGen(dropout_rate=dropout, in_channels=opt['channels'],
-                                                      out_channels=opt['channels'], n_blocks=opt['n_block']),
+                      'UNet': GeneratorUNet(dropout_rate=dropout, in_channels=opt['channels'],
+                                            out_channels=opt['channels'], crop_weight= opt['crop_weight']),
+                      'UResGen': UResGen(dropout_rate=dropout, in_channels=opt['channels'], n_blocks=opt['n_block'],
+                                            out_channels=opt['channels'], crop_weight= opt['crop_weight']),
                       'Dump': DumpGenerator()
                       }
     discriminator_list = {'pixel': PixelDiscriminator(in_channels=opt['channels']),'patch':NLayerDiscriminator(in_channels=opt['channels']*2)}

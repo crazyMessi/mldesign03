@@ -61,7 +61,7 @@ if train_opt['epoch'] > 0:
     model.load_state_dict(torch.load(model_root))
 else:
     # 为网络参数赋初值
-    model.apply(weights_init_normal)
+    model.apply(weights_init_zero)
 if cuda:
     model.cuda()
 
@@ -131,11 +131,13 @@ for epoch in range(train_opt['epoch'], train_opt['ep']):
     if epoch % 50 == 1 or epoch == train_opt['ep'] - 1:
         torch.save(model.state_dict(), '%s/%s_%d.pth' % (train_opt.get_model_root(), model_name, epoch))
 pro.finish()
-if fitlog:
-    fitlog.finish()
+code = 1
 if test:
     test_path = sys.path[0] + '/test.py'
-    os.system('python \"%s\" --model_dir \"%s\" --model_name %s --data_path \"%s\"'
-              ' --dropout %d --channels %d --n_block %d --n_downsampling %d --discriminator %s'
-              % (test_path, train_opt.get_model_root(), model_name, data_path, train_opt['dropout'],
-                 train_opt['channels'],train_opt['n_block'],train_opt['n_downsampling'],train_opt['discriminator']))
+    com = 'python \"%s\" --model_dir \"%s\"' % (test_path, train_opt.get_model_root())
+    com += option.opt_to_str(train_opt.opt)
+    code = os.system(com)
+
+if fitlog:
+    if code ==1:
+        fitlog.finish()

@@ -7,10 +7,16 @@ import tkinter as tk
 from tkinter import filedialog
 from utils.model_controller import valid_model_name
 
+# 将字典类型的opt变成字符串
+def opt_to_str(opt_dict):
+    s = ''
+    for k,v in opt_dict.items():
+        s += ' --%s \"%s\" '%(k,v)
+    return s
 
-class Train_opt:
+class MyOpt:
     def __init__(self, opt, root=os.getcwd() + '/output'):
-        super(Train_opt, self).__init__()
+        super(MyOpt, self).__init__()
         # 将opt转为字典类型
         if not isinstance(opt, dict):
             self.opt = vars(opt)
@@ -33,24 +39,24 @@ class Train_opt:
         k_hyper = self.get_key_hyper()
         for k, v in k_hyper.items():
             dir_name += str(k) + str(v)
-        root = '%s/%s/%s/train' % (self.root, opt['model_name'], dir_name)
+        root = '%s/%s/%s' % (self.root, opt['model_name'], dir_name)
         return root
 
     # 获得log存放路径
     def get_log_root(self):
-        return self.get_root() + '/log'
+        return '%s/%s_%s'% (self.get_root(),str(self.opt['model_mode']),'log')
 
     # 获得model存放路径
     def get_model_root(self):
-        return self.get_root() + '/model'
+        return '%s/%s'% (self.get_root(),'model')
 
     # 获得img存放路径
     def get_img_root(self):
-        return self.get_root() + '/img'
+        return '%s/%s_%s'% (self.get_root(),str(self.opt['model_mode']),'img')
 
     # 返回用于命名文件夹的超参
     def get_key_hyper(self):
-        k = ['lrG', 'lrD', 'bs', 'ep']
+        k = ['lrG', 'lrD', 'bs', 'ep', 'dg_rate', 'dp_epoch']
         v = {key: value for key, value in self.opt.items() if key in k}
         return v
 
@@ -95,7 +101,7 @@ class Test_opt:
             had_set = True
 
         self.mode_dir = model_dir
-        self.test_out = model_dir.replace('train', 'test', 1)
+        self.test_out = model_dir.replace('train', 'test', -1)
         self.test_out = self.test_out.replace('/model', '')
         self.mk_use_dirs()
 
@@ -133,7 +139,8 @@ def get_base_parse():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model_mode', type=str, default='null', help='设置模型训练还是测试')
-    # 为了找到训练模型参数地址，要与train.py中model_name参数一致
+    
+    # 以下超参会影响模型架构
     parser.add_argument('--model_name', type=str, default="null", help='模型名')
     parser.add_argument('--dropout', type=int, default=1, help='是否使用dropout')
     parser.add_argument('--channels', type=int, default=1, help='number of image channels')
@@ -142,13 +149,15 @@ def get_base_parse():
     parser.add_argument('--crop_weight', type=float, default=-0.99,help='skip connection拼接权重是否可训练 小于零表示不可训练 大于零则作为crop_weight初值')
     parser.add_argument('--discriminator',type=str,default='pixel',help='判断器类型')
     parser.add_argument('--residual_unet', type= int, default= -1, help='UNet是否使用残差学习')
-    parser.add_argument('--dg_rate',type= float,default=1, help='判别器迭代次数/生成器迭代次数')
-
-
+    
+    # 以下超参会参与文件夹命名
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
     parser.add_argument('--lrD', type=float, default=1e-4, help='adam: learning rate')
     parser.add_argument('--bs', type=int, default=8, help='size of the batches')
-    parser.add_argument('--ep', type=int, default=200, help='number of epochs of training')
+    parser.add_argument('--ep', type=int, default=1, help='number of epochs of training')
+    parser.add_argument('--dg_rate',type= float,default=1, help='判别器迭代次数/生成器迭代次数')
+    parser.add_argument('--dp_epoch',type= int,default=0, help='判别器提前训练期数')
+
     parser.add_argument('--lrG_d', type=int, default=90, help='G lr down')
     parser.add_argument('--lrD_d', type=int, default=10, help='D lr down')
     parser.add_argument('--g_loss_func', type=str, default='fixed_L1', help='L1表示L1;fixed_L1表示修正的L1')
@@ -168,23 +177,26 @@ def get_base_parse():
     parser.add_argument('--if_remove', type=int, default=1, help='是否需要移除模型')
     parser.add_argument('--data_path', type=str, default='fontdata', help='数据集位置')
     parser.add_argument('--checkpoint_interval', type=int, default=20, help='interval between model checkpoints')
+    parser.add_argument('--if_fitlog', type=int, default=1, help='是否使用fitlog')
+    parser.add_argument('--if_test', type=int, default=1, help='是否在执行完备后test')
+    parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
+    parser.add_argument('--dataloader_length', type=str, default='400', help='数据集长度,需要用来算步数')
     return parser
 
 
 def get_train_opt():
     parser = get_base_parse()
-    parser.add_argument('--if_fitlog', type=int, default=1, help='是否使用fitlog')
-    parser.add_argument('--if_test', type=int, default=1, help='是否在执行完备后test')
     opt = parser.parse_args()
-    opt = Train_opt(opt)
-    opt['model_mode'] = 'train'
+    opt.model_mode = 'train'
+    opt = MyOpt(opt)
     return opt
 
 
 def get_test_opt():
     parser = get_base_parse()  # 创建解析器对象 可以添加参数
-    parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
     opt = parser.parse_args()
-    opt = Test_opt(opt)
-    opt['model_mode'] = 'test'
+    opt.model_mode = 'test'
+    opt = MyOpt(opt)
     return opt
+
+pass

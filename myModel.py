@@ -308,7 +308,7 @@ class ResnetGenerator(nn.Module):
 # 魔改版的UNet,将中间的三个up/down层去掉,换成resblock。UNet模型的构造器用的是network里的，但在靠经resblock做了一定修改以适配
 class UResGen(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, ngf=64, norm_layer=nn.BatchNorm2d, dropout_rate=0, n_blocks=6,
-                 padding_type='reflect'):
+                 padding_type='reflect', crop_weight = -0.99):
         super(UResGen,self).__init__()
         use_bias = norm_layer == nn.InstanceNorm2d
    
@@ -331,10 +331,8 @@ class UResGen(nn.Module):
             if n_blocks == -34:
                 res_blocks = torchvision.models.resnet34()
 
-
-        unet_block = UnetSkipConnectionBlock(before_exit=ngf * 2, before_enter = ngf * 4, submodule=res_blocks, norm_layer=norm_layer, innermost=True)
-    
-        model += [UnetSkipConnectionBlock(before_exit=ngf, before_enter=ngf * 2, submodule=unet_block, norm_layer=norm_layer)]  # add the outermost layer
+        unet_block = UnetSkipConnectionBlock(before_exit=ngf * 2, before_enter = ngf * 4, submodule=res_blocks, norm_layer=norm_layer, innermost=True, crop_weight=crop_weight)
+        model += [UnetSkipConnectionBlock(before_exit=ngf, before_enter=ngf * 2, submodule=unet_block, norm_layer=norm_layer, crop_weight=crop_weight)]  # add the outermost layer
 
         model += [nn.ReflectionPad2d(3)]
         model += [nn.Conv2d(ngf*2, out_channels, kernel_size=7, padding=0)]
@@ -422,7 +420,11 @@ class GAN(nn.Module):
         super(GAN, self).__init__()
         self.generator = generator
         self.discriminator = discriminator
+        
         if train_opt['model_mode'] == 'train':
+            self.dg_rate = train_opt['dg_rate']
+            self.d_pts = train_opt['dp_epoch'] * train_opt['dataloader_length']
+            self.now_step = 0 # 模型当前训练总步数
             self.optimizer_G = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrG'],
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrG_d'] * train_opt['dataloader_length'])
@@ -434,6 +436,7 @@ class GAN(nn.Module):
 
         self.g_loss_func = g_loss_func
         self.d_loss_func = d_loss_func
+
 
     def forward(self, source, target):
         generate = self.generator(source)
@@ -454,7 +457,6 @@ class GAN(nn.Module):
             self.optimizer_G.zero_grad()
             loss_G.backward()
             self.optimizer_G.step()
-            return loss_G, 0, loss_sVg, loss_pixel, 0
         # 分辨源图像和目标图像
         loss_real = self.d_loss_func(source_target, valid)
         # 分辨源图像和生成图像
@@ -465,18 +467,22 @@ class GAN(nn.Module):
             self.optimizer_D.zero_grad()
             loss_D.backward()
             self.optimizer_D.step()
-            return 0, loss_D, 0, 0, 0
-        return loss_G, loss_D, loss_sVg, loss_pixel,loss_fake
+        return loss_G, loss_D, loss_sVg, loss_pixel,loss_fake,loss_real
 
     def step(self, source, target):
         generate, source_generate, source_target, source_generate2 = self(source, target)
-        loss_G, _, loss_sVg, loss_pixel, _ = self.loss(generate, target, source_generate, source_target,
-                                                    source_generate2, if_G_backward=True)
-        _, loss_D, _, _, loss_fake = self.loss(generate, target, source_generate, source_target,
-                                    source_generate2, if_D_backward=True)
+        if self.d_pts <= 0 & self.now_step% int(self.dg_rate) == 0:    
+            loss_G, loss_D, loss_sVg, loss_pixel, loss_fake,loss_real = self.loss(generate, target, source_generate, source_target,
+                                                        source_generate2, if_G_backward=True)
+        else: self.d_pts -= 1
 
+
+        loss_G, loss_D, loss_sVg, loss_pixel, loss_fake,loss_real = self.loss(generate, target, source_generate, source_target,
+                                source_generate2, if_D_backward=True)
+        
+            
         loss_dic = {'loss_G': loss_G.item(), 'loss_D': loss_D.item(), 'loss_pixel': loss_pixel.item(),
-                    'loss_sVg': loss_sVg.item(),'loss_fake':loss_fake}
+                    'loss_sVg': loss_sVg.item(),'loss_fake':loss_fake,'loss_real':loss_real.item()}
         return loss_dic
 
 

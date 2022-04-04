@@ -2,28 +2,25 @@ import os
 data_path = 'fontdata'
 script_path = 'my_train.py'
 
-ep = 202
-lrGs = [0.0001,0.0002,0.00005]
+ep = 1
+lrGs = [0.001]
 bss = [8]
-lrDs = [0.0001,0.00005]
-#autogen_name = ['AutoEncoderGen', 'UNetGen', 'ResGen']
+lrDs = [0.0002] 
 gan_name = ['GAN']
-g_loss_func = ['fixed_L1']
-dropout = [0, 1]
-channels = [1]
-wight_pic = [10, 50]
-
+g_loss_func = ['fixed_L1']                              
+discriminator = ['pixel']
+dg_rate = [2,3,5]
+dp_epoch = [0,10,20]
 
 for n in gan_name:
     for lrG in lrGs:
-        for lrD in lrDs:
+        for lrD in lrDs:            
             for bs in bss:
-                for d in dropout:
-                    for c in channels:
-                        for lo in g_loss_func:
-                            for lamb in wight_pic:
-                                name = '%s_%d_%d'%(n,d,lamb)
-                                os.system('python \"%s\" --model_name %s --ep %d --lrG %f  --lrD %f --bs %d --data_path \"%s\" '
-                                        '--g_loss_func %s --dropout %d --channels %d --weight_pic %d'
-                                        % (script_path, name, ep, lrG, lrD, bs, data_path, lo, d, c, lamb))
-
+                for lo in g_loss_func:
+                    for dis in discriminator:
+                        for dgr in dg_rate:
+                            for dpe in dp_epoch:
+                                name = '%s_%s'%(n,dis)
+                                com = 'python \"%s\" --model_name %s --ep %d --lrG %f --lrD %f --bs %d --data_path \"%s\" --g_loss_func %s --discriminator %s --dg_rate %d --dp_epoch %d' % (script_path, name, ep, lrG, lrD, bs, data_path, lo, dis, dgr, dpe)                         
+                                os.system(com)
+                                    

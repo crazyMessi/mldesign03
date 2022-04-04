@@ -9,6 +9,8 @@ lrDs = [0.0002]
 gan_name = ['ResGAN']
 g_loss_func = ['fixed_L1']                              
 discriminator = ['pixel']
+dg_rate = [2,3,5]
+dp_epoch = [0,10,20]
 
 for n in gan_name:
     for lrG in lrGs:
@@ -16,8 +18,9 @@ for n in gan_name:
             for bs in bss:
                 for lo in g_loss_func:
                     for dis in discriminator:
-                            name = '%s_%s'%(n,dis)
-                            os.system('python \"%s\" --model_name %s --ep %d --lrG %f --lrD %f --bs %d --data_path \"%s\" '
-                                    '--g_loss_func %s --discriminator %s' 
-                                    % (script_path, name, ep, lrG, lrD, bs, data_path, lo, dis))
-                                
+                        for dgr in dg_rate:
+                            for dpe in dp_epoch:
+                                name = '%s_%s'%(n,dis)
+                                com = 'python \"%s\" --model_name %s --ep %d --lrG %f --lrD %f --bs %d --data_path \"%s\" --g_loss_func %s --discriminator %s --dg_rate %d --dp_epoch %d' % (script_path, name, ep, lrG, lrD, bs, data_path, lo, dis, dgr, dpe)                         
+                                os.system(com)
+                                    
