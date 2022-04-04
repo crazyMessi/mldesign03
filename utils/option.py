@@ -62,7 +62,8 @@ class MyOpt:
 
     def get_fitlog_hyper(self):
         # fitlog可见的超参(黑名单机制,后续增加参数更方便)
-        k = ['epoch','n_cpu','img_width','img_height','sample_interval','if_remove','data_path','checkpoint_interval','if_fitlog','if_test','model_dir','model_mode','b1','b2']
+        k = ['epoch','n_cpu','img_width','img_height','sample_interval','if_remove','data_path',
+        'checkpoint_interval','if_fitlog','if_test','model_dir','model_mode','b1','b2','if_save','data_length']
         v = {key: value for key, value in self.opt.items() if key not in k}
         return v
 
@@ -140,7 +141,7 @@ def get_base_parse():
 
     parser.add_argument('--model_mode', type=str, default='null', help='设置模型训练还是测试')
     
-    # 以下超参会影响模型架构
+    # 以下超参会影响模型架构 如果不同于default需要在模型名字中体现出来
     parser.add_argument('--model_name', type=str, default="null", help='模型名')
     parser.add_argument('--dropout', type=int, default=1, help='是否使用dropout')
     parser.add_argument('--channels', type=int, default=1, help='number of image channels')
@@ -158,6 +159,7 @@ def get_base_parse():
     parser.add_argument('--dg_rate',type= float,default=1, help='判别器迭代次数/生成器迭代次数')
     parser.add_argument('--dp_epoch',type= int,default=0, help='判别器提前训练期数')
 
+    # 使用default设定
     parser.add_argument('--lrG_d', type=int, default=90, help='G lr down')
     parser.add_argument('--lrD_d', type=int, default=10, help='D lr down')
     parser.add_argument('--g_loss_func', type=str, default='fixed_L1', help='L1表示L1;fixed_L1表示修正的L1')
@@ -167,6 +169,7 @@ def get_base_parse():
     parser.add_argument('--weight_pic', type=float, default=10, help='计算生成器loss时,pic_loss的比例')
     # parser.add_argument('--decay_epoch', type=int, default=100, help='epoch from which to start lr decay')
 
+    # 不影响模型训练
     parser.add_argument('--epoch', type=int, default=0, help='epoch to start training from')
     parser.add_argument('--n_cpu', type=int, default=8,
                         help='number of cpu threads to use during batch generation')
@@ -181,6 +184,7 @@ def get_base_parse():
     parser.add_argument('--if_test', type=int, default=1, help='是否在执行完备后test')
     parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
     parser.add_argument('--dataloader_length', type=str, default='400', help='数据集长度,需要用来算步数')
+    parser.add_argument('--if_save',type=int,default='1',help='是否存储模型')
     return parser
 
 

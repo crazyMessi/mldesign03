@@ -17,6 +17,8 @@ class fixed_loss_G(nn.Module):
 MSE = torch.nn.MSELoss()
 
 
+
+
 # 为网络参数赋正态分布的初值
 def weights_init_normal(m):
     classname = m.__class__.__name__

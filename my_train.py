@@ -43,7 +43,7 @@ dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_),
                         batch_size=train_opt['bs'], shuffle=True, num_workers=0)
 train_opt['dataloader_length'] = len(dataloader)
 
-val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='train'),
+val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='val'),
                             batch_size=20, shuffle=False, num_workers=0)
 
 test_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='test'),
@@ -139,5 +139,5 @@ if test:
     code = os.system(com)
 
 if fitlog:
-    if code ==1:
+    if code == 0:
         fitlog.finish()
