@@ -2,15 +2,15 @@ import os
 data_path = 'fontdata'
 script_path = 'my_train.py'
 
-ep = 1
+ep = 202
 lrGs = [0.001]
 bss = [8]
 lrDs = [0.0002] 
 gan_name = ['ResGAN']
 g_loss_func = ['fixed_L1']                              
 discriminator = ['pixel']
-dg_rate = [2,3,5]
-dp_epoch = [0,10,20]
+dg_rate = [2]
+dp_epoch = [0]
 
 for n in gan_name:
     for lrG in lrGs:

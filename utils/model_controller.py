@@ -37,6 +37,15 @@ def weights_init_zero(m):
         torch.nn.init.constant_(m.bias.data, 0.0)
 
 
+def weights_init_kaiming(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        torch.nn.init.kaiming_normal(m.weight.data, a=0, mode='fan_in')
+    elif classname.find('BatchNorm2d') != -1:
+        torch.nn.init.normal_(m.weight.data, 1.0, 0.02)
+        torch.nn.init.constant_(m.bias.data, 0.0)
+
+
 # def weights_init_one(m):
 #     torch.nn.init.ones_
 

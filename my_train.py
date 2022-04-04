@@ -61,7 +61,7 @@ if train_opt['epoch'] > 0:
     model.load_state_dict(torch.load(model_root))
 else:
     # 为网络参数赋初值
-    model.apply(weights_init_zero)
+    model.apply(weights_init_kaiming)
 if cuda:
     model.cuda()
 
