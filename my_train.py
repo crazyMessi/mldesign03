@@ -46,8 +46,9 @@ my_opt['dataloader_length'] = len(dataloader)
 val_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='val'),
                             batch_size=20, shuffle=False, num_workers=0)
 
+# 每次测试整个测试集的得分,否则fitlog会记录最好的那个batch
 test_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mode='test'),
-                             batch_size=20, shuffle=False, num_workers=0)
+                             batch_size=80, shuffle=False, num_workers=0)
 
 # Tensor type
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
@@ -124,7 +125,6 @@ pro.start(my_opt['ep'] * bs_count)
 for epoch in range(my_opt['epoch'], my_opt['ep']):
     loss_dic = []
     for i, batch in enumerate(dataloader):
-
         # Model inputs
         source = batch['B'].type(Tensor)
         target = batch['A'].type(Tensor)
@@ -143,10 +143,11 @@ for epoch in range(my_opt['epoch'], my_opt['ep']):
             result.setdefault(key, []).append(val)
 
     result = {i: sum(result[i]) / len(result[i]) for i in result}
-    # 计算loss
+    # 计算test_loss
     result.update(cal_test_loss())
     if my_opt['if_fitlog']:
         fitlog.add_metric(result, epoch)
+        # 注意这会选取表现最好的一个test batch作为其得分
         fitlog.add_best_metric(result)
 
     # 每test_freq轮保存模型参数或者测试模型
@@ -157,6 +158,8 @@ for epoch in range(my_opt['epoch'], my_opt['ep']):
             loss_test = save_test_imgs(ep = epoch, loss_test=loss_test)
             ep_list.append(epoch)
 
+if my_opt['if_save'] == -1:
+    torch.save(model.state_dict(), '%s/%s_%d.pth' % (my_opt.get_model_root(), model_name, epoch))
 
 pro.finish()
 code = 0

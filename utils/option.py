@@ -184,7 +184,7 @@ def get_base_parse():
     parser.add_argument('--if_test', type=int, default=0, help='是否在执行完备后test。若为0则在模型训练期间test')
     parser.add_argument('--model_dir', type=str, default="test", help='模型文件夹')
     parser.add_argument('--dataloader_length', type=str, default='400', help='数据集长度,需要用来算步数')
-    parser.add_argument('--if_save',type=int,default=0,help='是否存储模型')
+    parser.add_argument('--if_save',type=int,default=0,help='是否存储模型 1表示全存;-1表示只存最后一个模型;0表示不存')
     return parser
 
 
