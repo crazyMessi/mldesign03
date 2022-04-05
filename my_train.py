@@ -128,7 +128,10 @@ for epoch in range(my_opt['epoch'], my_opt['ep']):
         # Model inputs
         source = batch['B'].type(Tensor)
         target = batch['A'].type(Tensor)
+        
+        # 训练模型
         loss_dic.append(model.step(source, target))
+        
         batches_done = epoch * len(dataloader) + i
         # If at sample interval save image
         if int(batches_done * my_opt['bs'] / 8) % int(my_opt['sample_interval']) == 0:

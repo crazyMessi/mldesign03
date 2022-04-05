@@ -9,7 +9,7 @@ lrDs = [0.0002]
 gan_name = ['UResGAN']
 g_loss_func = ['fixed_L1']                              
 discriminator = ['pixel']
-dg_rate = [1,2,4,8]
+dg_rate = [1]
 dp_epoch = [0]
 
 for ep in eps:

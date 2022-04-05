@@ -424,7 +424,7 @@ class GAN(nn.Module):
         if train_opt['model_mode'] == 'train':
             self.dg_rate = train_opt['dg_rate']
             self.d_pts = train_opt['dp_epoch'] * train_opt['dataloader_length']
-            self.now_step = 0 # 模型当前训练总步数
+            self.now_step = 0 # 模型当前训练步数 在step函数最开始时更新
             self.optimizer_G = Adam_Optimizer(parameters=self.generator.parameters(), lr=train_opt['lrG'],
                                               betas=(train_opt['b1'], train_opt['b2']),
                                               freq=train_opt['lrG_d'] * train_opt['dataloader_length'])
@@ -470,17 +470,22 @@ class GAN(nn.Module):
         return loss_G, loss_D, loss_sVg, loss_pixel,loss_fake,loss_real
 
     def step(self, source, target):
+        rate = int(self.dg_rate)
+        assert(rate>=1) # 只支持判别器训练次数大于生成器次数
         generate, source_generate, source_target, source_generate2 = self(source, target)
-        if self.d_pts <= 0 & self.now_step% int(self.dg_rate) == 0:    
-            loss_G, loss_D, loss_sVg, loss_pixel, loss_fake,loss_real = self.loss(generate, target, source_generate, source_target,
-                                                        source_generate2, if_G_backward=True)
-        else: self.d_pts -= 1
-
-
-        loss_G, loss_D, loss_sVg, loss_pixel, loss_fake,loss_real = self.loss(generate, target, source_generate, source_target,
-                                source_generate2, if_D_backward=True)
         
-            
+        # 1 先训练判别器
+        if self.d_pts <= 0:    
+            loss_G, loss_D, loss_sVg, loss_pixel, loss_fake,loss_real = self.loss(generate, target, source_generate, source_target,
+                                                            source_generate2, if_G_backward=True)    
+        else: self.d_pts -= 1
+        
+        # 2 为判别器加训
+        for _ in range(rate):
+            loss_G, loss_D, loss_sVg, loss_pixel, loss_fake,loss_real = self.loss(generate, target, source_generate, source_target,
+                                    source_generate2, if_D_backward=True)
+            generate, source_generate, source_target, source_generate2 = self(source, target)
+        
         loss_dic = {'loss_G': loss_G.item(), 'loss_D': loss_D.item(), 'loss_pixel': loss_pixel.item(),
                     'loss_sVg': loss_sVg.item(),'loss_fake':loss_fake,'loss_real':loss_real.item()}
         return loss_dic
