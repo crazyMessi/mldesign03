@@ -1,7 +1,7 @@
 import re
 from turtle import forward
 import torch
-from torch import nn
+from torch import nn, rand
 import torchvision
 from utils.my_optimizer import *
 
@@ -125,6 +125,37 @@ class UNetUp(nn.Module):
         return x
 
 
+class ResUNetUp(nn.Module):
+    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, res= 2,residual_unet = True):
+        super(ResUNetUp, self).__init__()
+        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1, bias=False),
+                  nn.BatchNorm2d(out_size),
+                  nn.ReLU(inplace=True)]
+        if dropout:
+            layers.append(nn.Dropout(dropout))
+        self.if_crop = if_crop
+        self.residual_unet = residual_unet
+        
+        if res:
+            res_block = [ResnetBlock(out_size,dropout=dropout)]
+            for i in range(res-1):
+                res_block += [ResnetBlock(out_size,dropout=dropout)]
+            self.model = nn.Sequential(*(layers+res_block))
+        else:
+            self.model = nn.Sequential(*layers)
+        
+        # 在crop前使用1*1卷积层连接
+        self.crop_conv = nn.Conv1d(out_size,out_size,kernel_size=1)
+
+
+    def forward(self, x, skip_input):
+        x = self.model(x)
+        if self.residual_unet:
+            # skip_input = self.crop_conv(skip_input)
+            x = x+skip_input
+        return x
+
+
 # ===================================
 #              子模型
 # ===================================
@@ -176,31 +207,57 @@ class GeneratorUNet(nn.Module):
     #     return self.loss_fun(generate, target)
 
 
+
 # Resnet版的UNet
 class UR(nn.Module):
-    def __init__(self) -> None:
-        super().__init__(self, in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5,crop_weight = -0.99)
+    def __init__(self,in_channels=3, out_channels=3, dropout_rate=0.5,residual_unet = False):
+        super().__init__()
+        self.down1 = UNetDown(in_channels, 64, normalize=False)
+        self.down2 = UNetDown(64, 128)
+        self.down3 = UNetDown(128, 256)
+        self.down4 = UNetDown(256, 512, dropout=dropout_rate)
+        self.down5 = UNetDown(512, 512, dropout=dropout_rate)
+        self.down6 = UNetDown(512, 512, dropout=dropout_rate, normalize=False)  # 不需要正规化了
+
+        self.up1 = ResUNetUp(512, 512, dropout=dropout_rate, residual_unet=residual_unet)
+        self.up2 = ResUNetUp(512, 512, dropout=dropout_rate,residual_unet = residual_unet)
+        self.up3 = ResUNetUp(512, 256, residual_unet = residual_unet)
+        self.up4 = ResUNetUp(256, 128, residual_unet = residual_unet)
+        self.up5 = ResUNetUp(128, 64, residual_unet = residual_unet)
+
+        self.final = nn.Sequential(
+            nn.Upsample(scale_factor=2),
+            nn.ZeroPad2d((1, 0, 1, 0)),
+            nn.Conv2d(64, out_channels, 4, padding=1),
+            nn.Tanh()
+        )
+
+    def forward(self, x):
+        # U-Net generator with skip connections from encoder to decoder
+        d1 = self.down1(x)  # x:[1, nc, 64, 64]  d1:[1, 64, 32, 32]
+        d2 = self.down2(d1)  # d2:[1,128,16,16]
+        d3 = self.down3(d2)  # d3:[1,256,8,8]
+        d4 = self.down4(d3)  # d4:[1,512,4,4]
+        d5 = self.down5(d4)  # d5:[1,512,2,2]
+        d6 = self.down6(d5)  # d6:[1,512,1,1]
+
+        u1 = self.up1(d6, d5)  # u1:[1,1024,2,2]
+        u2 = self.up2(u1, d4)  # u2:[1,1024,4,4]
+        u3 = self.up3(u2, d3)  # u3:[1,512,8,8]
+        u4 = self.up4(u3, d2)  # u4:[1,256,16,16]
+        u5 = self.up5(u4, d1)  # u5:[1,128,32,32]
+        return self.final(u5)
 
 
 
-    def forward(x):
-        pass
-
-
-class UR_block(nn.Module):
-    
-    #depth 表示网络层当前"高度"。最底层的高度为0 
-    def __init__(self, depth = 0,in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5,crop_weight = -0.99) -> None:
-        super().__init__(self)
-        res_block = ResnetBlock(in_channels,dropout=dropout_rate)
-        res_block += ResnetBlock(in_channels,dropout=dropout_rate)
-        
-
-
-
-
-    def forward(x):
-        pass
+# class UR_block(nn.Module):  
+#     #depth 表示网络层当前"高度"。最底层的高度为0 
+#     def __init__(self, depth = 0,in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5,crop_weight = -0.99) -> None:
+#         super().__init__(self)
+#         res_block = ResnetBlock(in_channels,dropout=dropout_rate)
+#         res_block += ResnetBlock(in_channels,dropout=dropout_rate)
+#     def forward(x):
+#         pass
 
 
 
@@ -262,8 +319,8 @@ class AutoEncoder(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, dropout_rate=0.5):
         super(AutoEncoder, self).__init__()
         # AutoEncoder即不使用crop的Unet
-        self.model = GeneratorUNet(in_channels=in_channels, out_channels=out_channels, if_crop=False,
-                                   dropout_rate=dropout_rate)
+        self.model = UR(in_channels=in_channels, out_channels=out_channels,
+                                   dropout_rate=dropout_rate,residual_unet=True)
 
     def forward(self, x):
         y = self.model(x)
@@ -581,4 +638,6 @@ class Dump(nn.Module):
         return loss_dic
 
 
-pass
+# a = AutoEncoder()
+# x = rand(8,3,64,64)
+# a(x)

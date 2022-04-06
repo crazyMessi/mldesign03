@@ -117,7 +117,7 @@ def save_test_imgs(ep):
 model.train()
 
 min_tloss = 500
-test_freq = 50
+test_freq = 10
 
 bs_count = len(dataloader)
 pro.start(my_opt['ep'] * bs_count)
@@ -162,7 +162,7 @@ for epoch in range(my_opt['epoch'], my_opt['ep']):
             ep_list.append(epoch)
 
 if my_opt['if_save'] == -1:
-    torch.save(model.state_dict(), '%s/%s_%d.pth' % (my_opt.get_model_root(), model_name, epoch))
+    torch.save(model, '%s/%s_%d.pth' % (my_opt.get_model_root(), model_name, epoch))
 
 pro.finish()
 code = 0
