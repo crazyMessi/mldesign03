@@ -63,7 +63,7 @@ def model_selector(opt):
                       'ResGenerator': ResnetGenerator(dropout_rate=dropout, in_channels=opt['channels'],n_downsampling=opt['n_downsampling'],
                                                       out_channels=opt['channels'], n_blocks=opt['n_block']),
                       'UNet': GeneratorUNet(dropout_rate=dropout, in_channels=opt['channels'],
-                                            out_channels=opt['channels'], crop_weight= opt['crop_weight']),
+                                            out_channels=opt['channels'], crop_weight= opt['crop_weight'],residual_unet=opt['residual_unet']),
                       'UResGen': UResGen(dropout_rate=dropout, in_channels=opt['channels'], n_blocks=opt['n_block'],
                                             out_channels=opt['channels'], crop_weight= opt['crop_weight']),
                       'Dump': DumpGenerator()

@@ -1,5 +1,5 @@
 import os
-eps = [151]
+eps = [151,153,155]
 lrGs = [0.001]
 bss = [8]
 n_block = [6]

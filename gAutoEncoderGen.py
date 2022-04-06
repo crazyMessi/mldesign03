@@ -1,9 +1,8 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-ep = 200 #1表示g
+ep = 201 #1表示g
 lrGs = [0.0001]
-bss = [80]
-autogen_name = ['AutoEncoderGen_origin']
+bss = [40]
+autogen_name = ['resAutoEncoderGen']
 g_loss_func = ['fixed_L1']
 
 

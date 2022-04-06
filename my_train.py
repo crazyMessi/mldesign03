@@ -92,7 +92,7 @@ def cal_test_loss():
     return {'test_loss_pixel': test_lose_pixel}
 
 
-def save_test_imgs(ep,loss_test):
+def save_test_imgs(ep):
     t = np.zeros([1,len(test_dataloader)])
     for i, imgs in enumerate(test_dataloader):
             real_A = imgs['B'].type(Tensor)
@@ -104,10 +104,10 @@ def save_test_imgs(ep,loss_test):
                 t[0][i] = (test_loss_func(fake_B, real_B)).item()
             else:
                 t[0][i] = (model.g_loss_func(fake_B, real_B)).item()
-    if loss_test:
-        loss_test = np.array(loss_test) + t
-    else:
-        loss_test = t
+    # if loss_test:
+    #     loss_test = np.array(loss_test) + t
+    # else:
+    #     loss_test = t
 
 
 
@@ -158,7 +158,7 @@ for epoch in range(my_opt['epoch'], my_opt['ep']):
         if my_opt['if_save'] == 1:
             torch.save(model.state_dict(), '%s/%s_%d.pth' % (my_opt.get_model_root(), model_name, epoch))
         if my_opt['if_test'] == 0:
-            loss_test = save_test_imgs(ep = epoch, loss_test=loss_test)
+            save_test_imgs(ep = epoch)
             ep_list.append(epoch)
 
 if my_opt['if_save'] == -1:

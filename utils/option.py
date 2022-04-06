@@ -149,7 +149,7 @@ def get_base_parse():
     parser.add_argument('--n_downsampling', type=int, default=2, help='ResGenerator下采样次数')
     parser.add_argument('--crop_weight', type=float, default=-0.99,help='skip connection拼接权重是否可训练 小于零表示不可训练 大于零则作为crop_weight初值')
     parser.add_argument('--discriminator',type=str,default='pixel',help='判断器类型')
-    parser.add_argument('--residual_unet', type= int, default= -1, help='UNet是否使用残差学习')
+    parser.add_argument('--residual_unet', type= int, default= -1, help='UNet在长连接时是否使用残差学习')
     
     # 以下超参会参与文件夹命名
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
