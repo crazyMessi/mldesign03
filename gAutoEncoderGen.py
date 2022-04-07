@@ -4,6 +4,7 @@ lrGs = [0.002]
 bss = [8]
 autogen_name = ['resAutoEncoderGen']
 g_loss_func = ['fixed_L1']
+residual_learning = [1,0]
 
 
 data_path = 'fontdata'
@@ -14,8 +15,9 @@ for ep in eps:
         for lrG in lrGs:
             for bs in bss:
                 for lo in g_loss_func:
-                    name = '%s'%(n)
-                    os.system('python \"%s\" --model_name %s --ep %d --lrG %f --bs %d --data_path \"%s\" '
-                                '--g_loss_func %s'
-                                % (script_path, name, ep, lrG, bs, data_path, lo))
+                    for res_l in residual_learning:
+                        name = '%s'%(n)
+                        os.system('python \"%s\" --model_name %s --ep %d --lrG %f --bs %d --data_path \"%s\" '
+                                    '--g_loss_func %s --residual_learning %d'
+                                    % (script_path, name, ep, lrG, bs, data_path, lo,res_l))
 

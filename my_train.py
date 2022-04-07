@@ -22,13 +22,6 @@ model_name = my_opt['model_name']
 test_loss_func = fixed_loss_G()
 
 
-if my_opt['if_fitlog']:
-    import fitlog
-    log_name = 'logs/test'
-    os.makedirs(log_name, exist_ok=True)
-    fitlog.set_log_dir(log_name)  # 设置log文件夹为'logs/', fitlog在每次运行的时候会默认以时间戳的方式在里面生成新的log
-    fitlog.add_hyper(my_opt.get_fitlog_hyper())
-
 transforms_ = []
 if my_opt['channels'] == 1:
     transforms_.append(transforms.ToPILImage())
@@ -54,6 +47,8 @@ test_dataloader = DataLoader(ImageDataset(data_path, transforms_=transforms_, mo
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
 model = model_selector(my_opt)
+with io.open(my_opt.get_model_root() + my_opt['model_name'] +'.txt', 'a', encoding='utf-8') as file:
+        file.write(str(model))
 start_rp = my_opt['epoch']
 loss_test = 0
 ep_list = []
@@ -149,6 +144,14 @@ for epoch in range(my_opt['epoch'], my_opt['ep']):
     # 计算test_loss
     result.update(cal_test_loss())
     if my_opt['if_fitlog']:
+        if epoch == my_opt['epoch']:
+            import fitlog
+            log_name = 'logs/test'
+            os.makedirs(log_name, exist_ok=True)
+            fitlog.set_log_dir(log_name)  # 设置log文件夹为'logs/', fitlog在每次运行的时候会默认以时间戳的方式在里面生成新的log
+            fitlog.add_hyper(my_opt.get_fitlog_hyper())
+
+
         fitlog.add_metric(result, epoch)
         # 注意这会选取表现最好的一个test batch作为其得分
         fitlog.add_best_metric(result)
@@ -171,18 +174,9 @@ if my_opt['if_test']>0:
     com = 'python \"%s\" --model_dir \"%s\"' % (test_path, my_opt.get_model_root())
     com += option.opt_to_str(my_opt.opt)
     code = os.system(com)
-# else:
-#     ax = plt.subplot()
-#     step = max(1, int(len(loss_test) / 5))
-#     for i in range(0, len(loss_test), step):
-#         ax.plot(loss_test[i, :], ep_list[i])
-#     ax.legend()
-#     plt.savefig(my_opt.get_img_root() + '/loss_summary1.png')
-#     plt.figure()
-#     plt.plot(ep_list, np.mean(loss_test, 1))
-#     plt.savefig(my_opt.get_img_root() + '/loss_summary2.png')
 
 
 if fitlog:
     if code == 0:
         fitlog.finish()
+

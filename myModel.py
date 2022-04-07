@@ -70,7 +70,10 @@ class ResnetBlock(nn.Module):
 
 
 class UNetDown(nn.Module):
-    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4, res=0):
+    '''
+    | res_block | conv | norm | LeakyReLU |
+    '''
+    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4, ad_res=0):
         # Unet和AutoEncoder的下采样是一致的
         super(UNetDown, self).__init__()    
         layers = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=2, padding=1, bias=False)]
@@ -80,9 +83,9 @@ class UNetDown(nn.Module):
         if dropout:
             layers.append(nn.Dropout(dropout))
 
-        if res>0:
+        if ad_res>0:
             res_block = [ResnetBlock(in_size,dropout=dropout)]
-            for i in range(res-1):
+            for i in range(ad_res-1):
                 res_block += [ResnetBlock(in_size,dropout=dropout)]
             self.model = nn.Sequential(*(res_block+layers))
         else:        
@@ -94,7 +97,11 @@ class UNetDown(nn.Module):
 
 
 class UNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, crop_weight = -0.99, res= 0,residual_unet = True, ks=4, padding=1):
+    '''
+    可拼接也可不拼接的UNet上采样层 建议不使用不拼接的版本 当不使用拼接时 输出通道数为 2*out_size
+    | conv | norm | LeakyReLU | res_block |
+    '''
+    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, crop_weight = -0.99, ad_res= 0, ks=4, padding=1):
         super(UNetUp, self).__init__()
         layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=ks, stride=2, padding=padding, bias=False),
                   nn.BatchNorm2d(out_size),
@@ -102,16 +109,15 @@ class UNetUp(nn.Module):
         if dropout:
             layers.append(nn.Dropout(dropout))
         self.if_crop = if_crop
-        self.residual_unet = residual_unet
 
         if crop_weight>=0:
             self.crop_weight = nn.Parameter(torch.tensor(crop_weight),requires_grad=True)
         else:
             self.crop_weight = nn.Parameter(torch.tensor(abs(crop_weight)),requires_grad=False)
         
-        if res:
+        if ad_res:
             res_block = [ResnetBlock(out_size,dropout=dropout)]
-            for i in range(res-1):
+            for i in range(ad_res-1):
                 res_block += [ResnetBlock(out_size,dropout=dropout)]
             self.model = nn.Sequential(*(layers+res_block))
         else:
@@ -126,9 +132,15 @@ class UNetUp(nn.Module):
 
 
 class ResUNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, res= 0,residual_unet = True, ks=4, padding = 1):
+    '''
+    用相加代替拼接的上采样层 输出通道数 = out_size
+    | conv | norm | LeakyReLU | res_block |
+    '''
+    
+    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, ad_res= 0,residual_unet = True, ks=4, padding = 1):
         super(ResUNetUp, self).__init__()
-        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=ks, stride=2, padding=padding, bias=False),
+        out_padding = int((ks+1)/2) - int(ks/2) # 如果是奇数则对输出进行padding
+        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=ks, stride=2, padding=padding, bias=False,output_padding=out_padding),
                   nn.BatchNorm2d(out_size),
                   nn.ReLU(inplace=True)]
         if dropout:
@@ -136,22 +148,21 @@ class ResUNetUp(nn.Module):
         self.if_crop = if_crop
         self.residual_unet = residual_unet
         
-        if res:
+        if ad_res:
             res_block = [ResnetBlock(out_size,dropout=dropout)]
-            for i in range(res-1):
+            for i in range(ad_res-1):
                 res_block += [ResnetBlock(out_size,dropout=dropout)]
             self.model = nn.Sequential(*(layers+res_block))
         else:
             self.model = nn.Sequential(*layers)
         
         # 在crop前使用1*1卷积层连接
-        self.crop_conv = nn.Conv1d(out_size,out_size,kernel_size=1)
+        self.crop_conv = nn.Conv2d(out_size,out_size,kernel_size=1)
 
 
     def forward(self, x, skip_input):
         x = self.model(x)
         if self.residual_unet:
-            # skip_input = self.crop_conv(skip_input)
             x = x+skip_input
         return x
 
@@ -160,25 +171,25 @@ class ResUNetUp(nn.Module):
 #              子模型
 # ===================================
 class GeneratorUNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5,crop_weight = -0.99,residual_unet = False):
+    def __init__(self, in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5,crop_weight = -0.99, ad_res = [0,0,0,0,0]):
         super(GeneratorUNet, self).__init__()
         self.down1 = UNetDown(in_channels, 64, normalize=False)
-        self.down2 = UNetDown(64, 128)
-        self.down3 = UNetDown(128, 256)
-        self.down4 = UNetDown(256, 512, dropout=dropout_rate)
-        self.down5 = UNetDown(512, 512, dropout=dropout_rate)
-        self.down6 = UNetDown(512, 512, dropout=dropout_rate, normalize=False)  # 不需要正规化了
+        self.down2 = UNetDown(64, 128, ad_res = ad_res[0])
+        self.down3 = UNetDown(128, 256, ad_res = ad_res[1])
+        self.down4 = UNetDown(256, 512, dropout=dropout_rate, ad_res = ad_res[2])
+        self.down5 = UNetDown(512, 512, dropout=dropout_rate, ad_res = ad_res[3])
+        self.down6 = UNetDown(512, 512, dropout=dropout_rate, normalize=False, ad_res = ad_res[4])  # 不需要正规化了
 
         out_channels_rate = 1
         if not if_crop:
             # 如果不使用下采样的信息补充 则反卷积层输出的通道数翻倍 这样这次上采样输出的层数就和原来保持一致了
             # 曾经尝试直接复制一个 但loss存在差异
             out_channels_rate = 2
-        self.up1 = UNetUp(512, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop,crop_weight = crop_weight, residual_unet=residual_unet)
-        self.up2 = UNetUp(1024, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop,crop_weight = crop_weight,residual_unet = residual_unet)
-        self.up3 = UNetUp(1024, 256 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight,residual_unet = residual_unet)
-        self.up4 = UNetUp(512, 128 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight,residual_unet = residual_unet)
-        self.up5 = UNetUp(256, 64 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight,residual_unet = residual_unet)
+        self.up1 = UNetUp(512, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop,crop_weight = crop_weight, ad_res = ad_res[4])
+        self.up2 = UNetUp(1024, 512 * out_channels_rate, dropout=dropout_rate, if_crop=if_crop,crop_weight = crop_weight, ad_res = ad_res[3])
+        self.up3 = UNetUp(1024, 256 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight, ad_res = ad_res[2])
+        self.up4 = UNetUp(512, 128 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight, ad_res = ad_res[1])
+        self.up5 = UNetUp(256, 64 * out_channels_rate, if_crop=if_crop,crop_weight = crop_weight, ad_res = ad_res[0])
 
         self.final = nn.Sequential(
             nn.Upsample(scale_factor=2),
@@ -203,27 +214,24 @@ class GeneratorUNet(nn.Module):
         u5 = self.up5(u4, d1)  # u5:[1,128,32,32]
         return self.final(u5)
 
-    # def loss(self, generate, target):
-    #     return self.loss_fun(generate, target)
 
 
-
-# Resnet版的UNet
+# 使用残差学习代替skip connection的UNet
 class UR(nn.Module):
-    def __init__(self,in_channels=3, out_channels=3, dropout_rate=0.5,residual_unet = False):
+    def __init__(self,in_channels=3, out_channels=3, dropout_rate=0.5,residual_unet = [0,0,0,0,0], ad_res = [0,0,0,0,0]):
         super().__init__()
         self.down1 = UNetDown(in_channels, 64, normalize=False)
-        self.down2 = UNetDown(64, 128)
-        self.down3 = UNetDown(128, 256)
-        self.down4 = UNetDown(256, 512, dropout=dropout_rate)
-        self.down5 = UNetDown(512, 512, dropout=dropout_rate)
-        self.down6 = UNetDown(512, 512, dropout=dropout_rate, normalize=False)  # 不需要正规化了
+        self.down2 = UNetDown(64, 128, ad_res = ad_res[0])
+        self.down3 = UNetDown(128, 256, ad_res = ad_res[1])
+        self.down4 = UNetDown(256, 512, dropout=dropout_rate, ad_res = ad_res[2])
+        self.down5 = UNetDown(512, 512, dropout=dropout_rate, ad_res = ad_res[3])
+        self.down6 = UNetDown(512, 512, dropout=dropout_rate, normalize=False, ad_res = ad_res[4])  # 不需要正规化了
 
-        self.up1 = ResUNetUp(512, 512, dropout=dropout_rate, residual_unet=residual_unet)
-        self.up2 = ResUNetUp(512, 512, dropout=dropout_rate,residual_unet = residual_unet)
-        self.up3 = ResUNetUp(512, 256, residual_unet = residual_unet)
-        self.up4 = ResUNetUp(256, 128, residual_unet = residual_unet)
-        self.up5 = ResUNetUp(128, 64, residual_unet = residual_unet)
+        self.up1 = ResUNetUp(512, 512, dropout=dropout_rate, residual_unet=int(residual_unet[4]), ad_res = ad_res[4])
+        self.up2 = ResUNetUp(512, 512, dropout=dropout_rate,residual_unet = int(residual_unet[3]), ad_res = ad_res[3])
+        self.up3 = ResUNetUp(512, 256, residual_unet = int(residual_unet[2]), ad_res = ad_res[2])
+        self.up4 = ResUNetUp(256, 128, residual_unet = int(residual_unet[1]), ad_res = ad_res[1])
+        self.up5 = ResUNetUp(128, 64, residual_unet = int(residual_unet[0]), ad_res = ad_res[0])
 
         self.final = nn.Sequential(
             nn.Upsample(scale_factor=2),
@@ -247,17 +255,6 @@ class UR(nn.Module):
         u4 = self.up4(u3, d2)  # u4:[1,256,16,16]
         u5 = self.up5(u4, d1)  # u5:[1,128,32,32]
         return self.final(u5)
-
-
-
-# class UR_block(nn.Module):  
-#     #depth 表示网络层当前"高度"。最底层的高度为0 
-#     def __init__(self, depth = 0,in_channels=3, out_channels=3, if_crop=True, dropout_rate=0.5,crop_weight = -0.99) -> None:
-#         super().__init__(self)
-#         res_block = ResnetBlock(in_channels,dropout=dropout_rate)
-#         res_block += ResnetBlock(in_channels,dropout=dropout_rate)
-#     def forward(x):
-#         pass
 
 
 
@@ -316,11 +313,12 @@ class UnetSkipConnectionBlock(nn.Module):
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3, dropout_rate=0.5):
+    def __init__(self, in_channels=3, out_channels=3, dropout_rate=0.5, residual_unet = [0,0,0,0,0]):
         super(AutoEncoder, self).__init__()
-        # AutoEncoder即不使用crop的Unet
+        # AutoEncoder 包括basic版以及residual版
         self.model = UR(in_channels=in_channels, out_channels=out_channels,
-                                   dropout_rate=dropout_rate,residual_unet=True)
+                                   dropout_rate=dropout_rate,residual_unet=residual_unet)
+
 
     def forward(self, x):
         y = self.model(x)
@@ -347,6 +345,7 @@ class DumpGenerator(nn.Module):
             return x
 
 
+# ResGenerator github上复制的
 class ResnetGenerator(nn.Module):
     """Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
 
@@ -407,48 +406,14 @@ class ResnetGenerator(nn.Module):
         return self.model(input)
 
 
-# 魔改版的UNet,将中间的三个up/down层去掉,换成resblock。UNet模型的构造器用的是network里的，但在靠经resblock做了一定修改以适配
-# class UResGen(nn.Module):
-#     def __init__(self, in_channels=3, out_channels=3, ngf=64, norm_layer=nn.BatchNorm2d, dropout_rate=0, n_blocks=6,
-#                  padding_type='reflect', crop_weight = -0.99):
-#         super(UResGen,self).__init__()
-#         use_bias = norm_layer == nn.InstanceNorm2d
-   
-#         model = [nn.ReflectionPad2d(3),
-#                  nn.Conv2d(in_channels, ngf, kernel_size=7, padding=0, bias=use_bias),
-#                  norm_layer(ngf),
-#                  nn.ReLU(True)]
-
-#         res_blocks = []
-#         n_downsampling = 2
-#         mult = 2 ** n_downsampling # 进入res blocks时图像层数增加的倍数 实际就是下采样的倍数
-#         if n_blocks>0:
-#             for i in range(n_blocks):  # 堆叠n个res block
-#                 res_blocks += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, dropout=dropout_rate,
-#                                     use_bias=use_bias)]
-#             res_blocks = nn.Sequential(*res_blocks)
-#         else:
-#             if n_blocks == -18:
-#                 res_blocks = torchvision.models.resnet18()
-#             if n_blocks == -34:
-#                 res_blocks = torchvision.models.resnet34()
-
-#         unet_block = UnetSkipConnectionBlock(before_exit=ngf * 2, before_enter = ngf * 4, submodule=res_blocks, norm_layer=norm_layer, innermost=True, crop_weight=crop_weight)
-#         model += [UnetSkipConnectionBlock(before_exit=ngf, before_enter=ngf * 2, submodule=unet_block, norm_layer=norm_layer, crop_weight=crop_weight)]  # add the outermost layer
-
-#         model += [nn.ReflectionPad2d(3)]
-#         model += [nn.Conv2d(ngf*2, out_channels, kernel_size=7, padding=0)]
-#         model += [nn.Tanh()]
-#         self.model = nn.Sequential(*model)
-
-#     def forward(self, source):
-#         return self.model(source)
 
 
+# ResGenerator和UNet结合 实际是长短连接的结合
 class UResGen(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, ngf=64, norm_layer=nn.BatchNorm2d, dropout_rate=0, n_blocks=6,
-                 padding_type='reflect', crop_weight = -0.99, n_downsampling =2) -> None:
+                 padding_type='reflect', n_downsampling =2,ad_res = [0,0]):
         super().__init__()
+        print(n_downsampling)
         self.n_downsampling = n_downsampling
         use_bias = norm_layer == nn.InstanceNorm2d
    
@@ -460,7 +425,7 @@ class UResGen(nn.Module):
         self.down_layer = nn.ModuleList()
         for i in range(n_downsampling):  # add downsampling layers
             mult = 2 ** i
-            self.down_layer.append(UNetDown(ngf * mult, ngf * mult * 2, normalize=True, dropout=0,res=0))
+            self.down_layer.append(UNetDown(ngf * mult, ngf * mult * 2, normalize=True, dropout=0,ad_res = ad_res[i], ks=3 ))
 
         mult = 2 ** n_downsampling
         self.res_blocks = []
@@ -474,7 +439,7 @@ class UResGen(nn.Module):
         self.up_layer = nn.ModuleList()
         for i in range(n_downsampling):  # add upsampling layers
             mult = 2 ** (n_downsampling - i)
-            self.up_layer.append(ResUNetUp(ngf * mult, int(ngf * mult / 2), dropout=0, res=0))
+            self.up_layer.append(ResUNetUp(ngf * mult, int(ngf * mult / 2), dropout=0, ad_res=ad_res[n_downsampling-i-1],ks=3))
     
         self.out_layer = nn.Sequential(*[nn.ReflectionPad2d(3),nn.Conv2d(ngf, out_channels, kernel_size=7, padding=0),nn.Tanh()])
 

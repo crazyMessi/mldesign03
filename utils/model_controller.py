@@ -1,5 +1,4 @@
 from myModel import *
-
 valid_model_name = ['AutoEncoderGen', 'UNetGen', 'ResGen', 'UResGen', 'GAN', 'pic2pic', 'ResGAN', 'UResGAN']
 
 
@@ -56,16 +55,19 @@ def model_selector(opt):
     model_name = opt['model_name']
     g_loss_func_list = {'L1': torch.nn.L1Loss(), 'fixed_L1': fixed_loss_G(), 'MSE': torch.nn.MSELoss()}
     g_loss_func = g_loss_func_list[opt['g_loss_func']]
-    dropout = 0.5 if opt['dropout'] > 0 else 0
 
-    generator_list = {'AutoEncoder': AutoEncoder(dropout_rate=dropout, in_channels=opt['channels'],
-                                                 out_channels=opt['channels']),
-                      'ResGenerator': ResnetGenerator(dropout_rate=dropout, in_channels=opt['channels'],n_downsampling=opt['n_downsampling'],
+    generator_list = {'AutoEncoder': UR(dropout_rate=opt['dropout'], in_channels=opt['channels'],
+                                                 out_channels=opt['channels'],residual_unet = opt['residual_unet'], ad_res = opt['ad_res']),
+                      
+                      'ResGenerator': ResnetGenerator(dropout_rate=opt['dropout'], in_channels=opt['channels'],n_downsampling=opt['n_downsampling'],
                                                       out_channels=opt['channels'], n_blocks=opt['n_block']),
-                      'UNet': GeneratorUNet(dropout_rate=dropout, in_channels=opt['channels'],
-                                            out_channels=opt['channels'], crop_weight= opt['crop_weight'],residual_unet=opt['residual_unet']),
-                      'UResGen': UResGen(dropout_rate=dropout, in_channels=opt['channels'], n_blocks=opt['n_block'],
-                                            out_channels=opt['channels'], crop_weight= opt['crop_weight']),
+                      
+                      'UNet': GeneratorUNet(dropout_rate=opt['dropout'], in_channels=opt['channels'],
+                                            out_channels=opt['channels'], crop_weight= opt['crop_weight'], ad_res = opt['ad_res']),
+
+                      'UResGen': UResGen(dropout_rate=opt['dropout'], in_channels=opt['channels'], n_blocks=opt['n_block'],
+                                            out_channels=opt['channels'],n_downsampling=opt['n_downsampling'], ad_res = opt['ad_res']),
+                      
                       'Dump': DumpGenerator()
                       }
     discriminator_list = {'pixel': PixelDiscriminator(in_channels=opt['channels']),'patch':NLayerDiscriminator(in_channels=opt['channels']*2)}

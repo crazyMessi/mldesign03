@@ -7,6 +7,13 @@ import tkinter as tk
 from tkinter import filedialog
 from utils.model_controller import valid_model_name
 
+def parse_num(s):
+    num = []
+    for i in range(len(s)):
+       num.append(int(s[i]))
+    return num
+
+
 # 将字典类型的opt变成字符串
 def opt_to_str(opt_dict):
     s = ''
@@ -145,13 +152,13 @@ def get_base_parse():
     parser.add_argument('--model_name', type=str, default="null", help='模型名')
     parser.add_argument('--dropout', type=int, default=1, help='是否使用dropout')
     parser.add_argument('--channels', type=int, default=1, help='number of image channels')
-    parser.add_argument('--n_block', type=int, default=6, help='ResGenerator中的block数量')
+    parser.add_argument('--n_block', type=int, default=6, help='ResGenerator采样后的block总数(偶数)')
+    parser.add_argument('--ad_res', type= str, default= '000000', help='上采样/下采样单层内添加的res_block数量(自顶而下) 上下采样层是对称的')
     parser.add_argument('--n_downsampling', type=int, default=2, help='ResGenerator下采样次数')
     parser.add_argument('--crop_weight', type=float, default=-0.99,help='skip connection拼接权重是否可训练 小于零表示不可训练 大于零则作为crop_weight初值')
     parser.add_argument('--discriminator',type=str,default='pixel',help='判断器类型')
-    parser.add_argument('--residual_unet', type= int, default= -1, help='UNet在长连接时是否使用残差学习')
-    parser.add_argument('--ures_block', type= int, default= '222222', help='UNet中每层的res_block')
-
+    parser.add_argument('--residual_unet', type= str, default= '000000', help='是否在上采样层中使用残差学习(自顶而下)')
+ 
     # 以下超参会参与文件夹命名
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
     parser.add_argument('--lrD', type=float, default=1e-4, help='adam: learning rate')
@@ -194,6 +201,9 @@ def get_train_opt():
     opt = parser.parse_args()
     opt.model_mode = 'train'
     opt = MyOpt(opt)
+    opt['dropout'] = 0.5 if opt['dropout'] > 0 else 0
+    opt['residual_unet'] = parse_num(opt['residual_unet'])
+    opt['ad_res'] = parse_num(opt['ad_res'])
     return opt
 
 
@@ -202,6 +212,9 @@ def get_test_opt():
     opt = parser.parse_args()
     opt.model_mode = 'test'
     opt = MyOpt(opt)
+    opt['dropout'] = 0.5 if opt['dropout'] > 0 else 0
+    opt['residual_unet'] = parse_num(opt['residual_unet'])
+    opt['ad_res'] = parse_num(opt['ad_res'])
     return opt
 
 pass
