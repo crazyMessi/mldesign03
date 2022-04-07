@@ -1,8 +1,8 @@
 import os
-eps = [201,203]
+eps = [201]
 lrGs = [0.002]
 bss = [8]
-model_name = ['resUNetGen2']
+model_name = ['resUNetGen']
 g_loss_func = ['fixed_L1']
 
 

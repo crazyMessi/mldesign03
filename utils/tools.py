@@ -6,4 +6,9 @@ def show_tensor(ts, i=0):
     array_img = ts.cpu().numpy()
     plt.imshow(array_img[i])
 
+
+def parse_num(s):
+    num = []
+    for i in s:
+       num.append(int(s[i]))
 pass

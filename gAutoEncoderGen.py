@@ -1,6 +1,6 @@
 import os
-eps = [203,205] #1表示g
-lrGs = [0.001]
+eps = [203] #1表示g
+lrGs = [0.002]
 bss = [8]
 autogen_name = ['resAutoEncoderGen']
 g_loss_func = ['fixed_L1']

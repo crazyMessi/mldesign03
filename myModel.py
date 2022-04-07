@@ -70,7 +70,7 @@ class ResnetBlock(nn.Module):
 
 
 class UNetDown(nn.Module):
-    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4, res=2):
+    def __init__(self, in_size, out_size, normalize=True, dropout=0.0, ks=4, res=0):
         # Unet和AutoEncoder的下采样是一致的
         super(UNetDown, self).__init__()    
         layers = [nn.Conv2d(in_size, out_size, kernel_size=ks, stride=2, padding=1, bias=False)]
@@ -94,9 +94,9 @@ class UNetDown(nn.Module):
 
 
 class UNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, crop_weight = -0.99, res= 2,residual_unet = True):
+    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, crop_weight = -0.99, res= 0,residual_unet = True, ks=4, padding=1):
         super(UNetUp, self).__init__()
-        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1, bias=False),
+        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=ks, stride=2, padding=padding, bias=False),
                   nn.BatchNorm2d(out_size),
                   nn.ReLU(inplace=True)]
         if dropout:
@@ -121,14 +121,14 @@ class UNetUp(nn.Module):
     def forward(self, x, skip_input):
         x = self.model(x)
         if self.if_crop > 0:
-            x = torch.cat((x+skip_input, skip_input*self.crop_weight), 1)
+            x = torch.cat((x, skip_input*self.crop_weight), 1)
         return x
 
 
 class ResUNetUp(nn.Module):
-    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, res= 2,residual_unet = True):
+    def __init__(self, in_size, out_size, dropout=0.0, if_crop=True, res= 0,residual_unet = True, ks=4, padding = 1):
         super(ResUNetUp, self).__init__()
-        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=4, stride=2, padding=1, bias=False),
+        layers = [nn.ConvTranspose2d(in_size, out_size, kernel_size=ks, stride=2, padding=padding, bias=False),
                   nn.BatchNorm2d(out_size),
                   nn.ReLU(inplace=True)]
         if dropout:
@@ -379,7 +379,7 @@ class ResnetGenerator(nn.Module):
             mult = 2 ** i
             model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=1, bias=use_bias),
                       norm_layer(ngf * mult * 2),
-                      nn.ReLU(True)]
+                      nn.ReLU(True)]       
 
         mult = 2 ** n_downsampling
         for i in range(n_blocks):  # add ResNet blocks
@@ -408,41 +408,90 @@ class ResnetGenerator(nn.Module):
 
 
 # 魔改版的UNet,将中间的三个up/down层去掉,换成resblock。UNet模型的构造器用的是network里的，但在靠经resblock做了一定修改以适配
+# class UResGen(nn.Module):
+#     def __init__(self, in_channels=3, out_channels=3, ngf=64, norm_layer=nn.BatchNorm2d, dropout_rate=0, n_blocks=6,
+#                  padding_type='reflect', crop_weight = -0.99):
+#         super(UResGen,self).__init__()
+#         use_bias = norm_layer == nn.InstanceNorm2d
+   
+#         model = [nn.ReflectionPad2d(3),
+#                  nn.Conv2d(in_channels, ngf, kernel_size=7, padding=0, bias=use_bias),
+#                  norm_layer(ngf),
+#                  nn.ReLU(True)]
+
+#         res_blocks = []
+#         n_downsampling = 2
+#         mult = 2 ** n_downsampling # 进入res blocks时图像层数增加的倍数 实际就是下采样的倍数
+#         if n_blocks>0:
+#             for i in range(n_blocks):  # 堆叠n个res block
+#                 res_blocks += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, dropout=dropout_rate,
+#                                     use_bias=use_bias)]
+#             res_blocks = nn.Sequential(*res_blocks)
+#         else:
+#             if n_blocks == -18:
+#                 res_blocks = torchvision.models.resnet18()
+#             if n_blocks == -34:
+#                 res_blocks = torchvision.models.resnet34()
+
+#         unet_block = UnetSkipConnectionBlock(before_exit=ngf * 2, before_enter = ngf * 4, submodule=res_blocks, norm_layer=norm_layer, innermost=True, crop_weight=crop_weight)
+#         model += [UnetSkipConnectionBlock(before_exit=ngf, before_enter=ngf * 2, submodule=unet_block, norm_layer=norm_layer, crop_weight=crop_weight)]  # add the outermost layer
+
+#         model += [nn.ReflectionPad2d(3)]
+#         model += [nn.Conv2d(ngf*2, out_channels, kernel_size=7, padding=0)]
+#         model += [nn.Tanh()]
+#         self.model = nn.Sequential(*model)
+
+#     def forward(self, source):
+#         return self.model(source)
+
+
 class UResGen(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, ngf=64, norm_layer=nn.BatchNorm2d, dropout_rate=0, n_blocks=6,
-                 padding_type='reflect', crop_weight = -0.99):
-        super(UResGen,self).__init__()
+                 padding_type='reflect', crop_weight = -0.99, n_downsampling =2) -> None:
+        super().__init__()
+        self.n_downsampling = n_downsampling
         use_bias = norm_layer == nn.InstanceNorm2d
    
-        model = [nn.ReflectionPad2d(3),
+        self.input_layer = nn.Sequential(*[nn.ReflectionPad2d(3),
                  nn.Conv2d(in_channels, ngf, kernel_size=7, padding=0, bias=use_bias),
                  norm_layer(ngf),
-                 nn.ReLU(True)]
+                 nn.ReLU(True)])
 
-        res_blocks = []
-        n_downsampling = 2
-        mult = 2 ** n_downsampling # 进入res blocks时图像层数增加的倍数 实际就是下采样的倍数
-        if n_blocks>0:
-            for i in range(n_blocks):  # 堆叠n个res block
-                res_blocks += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, dropout=dropout_rate,
-                                    use_bias=use_bias)]
-            res_blocks = nn.Sequential(*res_blocks)
-        else:
-            if n_blocks == -18:
-                res_blocks = torchvision.models.resnet18()
-            if n_blocks == -34:
-                res_blocks = torchvision.models.resnet34()
+        self.down_layer = nn.ModuleList()
+        for i in range(n_downsampling):  # add downsampling layers
+            mult = 2 ** i
+            self.down_layer.append(UNetDown(ngf * mult, ngf * mult * 2, normalize=True, dropout=0,res=0))
 
-        unet_block = UnetSkipConnectionBlock(before_exit=ngf * 2, before_enter = ngf * 4, submodule=res_blocks, norm_layer=norm_layer, innermost=True, crop_weight=crop_weight)
-        model += [UnetSkipConnectionBlock(before_exit=ngf, before_enter=ngf * 2, submodule=unet_block, norm_layer=norm_layer, crop_weight=crop_weight)]  # add the outermost layer
+        mult = 2 ** n_downsampling
+        self.res_blocks = []
+        for i in range(n_blocks):  # add ResNet blocks
 
-        model += [nn.ReflectionPad2d(3)]
-        model += [nn.Conv2d(ngf*2, out_channels, kernel_size=7, padding=0)]
-        model += [nn.Tanh()]
-        self.model = nn.Sequential(*model)
+            self.res_blocks+=[ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, dropout=dropout_rate,
+                                  use_bias=use_bias)]
+        self.res_blocks = nn.Sequential(*self.res_blocks)
 
-    def forward(self, source):
-        return self.model(source)
+
+        self.up_layer = nn.ModuleList()
+        for i in range(n_downsampling):  # add upsampling layers
+            mult = 2 ** (n_downsampling - i)
+            self.up_layer.append(ResUNetUp(ngf * mult, int(ngf * mult / 2), dropout=0, res=0))
+    
+        self.out_layer = nn.Sequential(*[nn.ReflectionPad2d(3),nn.Conv2d(ngf, out_channels, kernel_size=7, padding=0),nn.Tanh()])
+
+    def forward(self,x):
+        x = self.input_layer(x)
+        d = [x]
+        for i in range(self.n_downsampling):
+            d.append(self.down_layer[i](d[i]))
+        u = [self.res_blocks(d[self.n_downsampling])]
+        for i in range(self.n_downsampling):
+            u.append(self.up_layer[i](u[i],d[self.n_downsampling-i-1]))
+        out = self.out_layer(u[self.n_downsampling])
+        return out
+
+
+
+
 
 
 class PixelDiscriminator(nn.Module):
@@ -638,6 +687,6 @@ class Dump(nn.Module):
         return loss_dic
 
 
-# a = AutoEncoder()
-# x = rand(8,3,64,64)
-# a(x)
+a = UResGen()
+x = rand(8,3,64,64)
+a(x)

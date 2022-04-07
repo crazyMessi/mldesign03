@@ -150,7 +150,8 @@ def get_base_parse():
     parser.add_argument('--crop_weight', type=float, default=-0.99,help='skip connection拼接权重是否可训练 小于零表示不可训练 大于零则作为crop_weight初值')
     parser.add_argument('--discriminator',type=str,default='pixel',help='判断器类型')
     parser.add_argument('--residual_unet', type= int, default= -1, help='UNet在长连接时是否使用残差学习')
-    
+    parser.add_argument('--ures_block', type= int, default= '222222', help='UNet中每层的res_block')
+
     # 以下超参会参与文件夹命名
     parser.add_argument('--lrG', type=float, default=1e-4, help='adam: learning rate')
     parser.add_argument('--lrD', type=float, default=1e-4, help='adam: learning rate')

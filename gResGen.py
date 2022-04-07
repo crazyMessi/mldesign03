@@ -1,9 +1,9 @@
 import os
-eps = [151,153,155]
-lrGs = [0.001]
+eps = [101]
+lrGs = [0.001,0.002]
 bss = [8]
 n_block = [6]
-model_name = ['ResGen']
+model_name = ['UResGen']
 g_loss_func = ['fixed_L1']
 crop_wight = [-0.99]
 
