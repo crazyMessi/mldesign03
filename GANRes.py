@@ -1,6 +1,5 @@
 import os
 
-from torch import dropout
 data_path = 'fontdata'
 script_path = 'my_train.py'
 
@@ -16,7 +15,7 @@ g_loss_func = ['fixed_L1']
 discriminator = ['pixel']
 # 变参
 dg_rate = [1,2,4]
-dp_epoch = [0,10]
+dp_epoch = [0]
 
 for ep in eps:
     for n in gan_name:
