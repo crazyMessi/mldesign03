@@ -483,7 +483,7 @@ class PixelDiscriminator(nn.Module):
     def forward(self, img_A, img_B):
         # Concatenate image and condition image
         # by channels to produce input
-        img_input = torch.cat((img_A, img_B), 1)
+        img_input = torch.cat((img_B-img_A, img_B), 1)
         return self.model(img_input)
 
 
@@ -523,6 +523,19 @@ class NLayerDiscriminator(nn.Module):
         # Concatenate image and condition image
         # by channels to produce input
         img_input = torch.cat((img_A, img_B), 1)
+        return self.model(img_input)
+
+
+class resnet(nn.Module):
+    def __init__(self,layer = 18, pre_train = 1) -> None:
+        super().__init__()
+        if layer == 18:
+            self.model = torchvision.models.resnet18(pretrained=pre_train)
+        if layer == 34:
+            self.model = torchvision.models.resnet34(pretrained=pre_train)
+
+    def forward(self, img_A, img_B):
+        img_input = img_A-img_B
         return self.model(img_input)
 
 

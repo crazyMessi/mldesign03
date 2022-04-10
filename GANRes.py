@@ -12,10 +12,10 @@ lrDs = [0.00005]
 weight_pic = 50
 dropout = 0
 g_loss_func = ['fixed_L1']                              
-discriminator = ['pixel']
+discriminator = ['p_resnet18']
 # 变参
-dg_rate = [1,2,4]
-dp_epoch = [0]
+dg_rate = [1]
+dp_epoch = [10]
 
 for ep in eps:
     for n in gan_name:
@@ -26,7 +26,7 @@ for ep in eps:
                         for dis in discriminator:
                             for dgr in dg_rate:
                                 for dpe in dp_epoch:
-                                    name = '%s'%(n)
-                                    com = 'python \"%s\" --model_name %s --ep %d --lrG %f --lrD %f --bs %d --data_path \"%s\" --g_loss_func %s --discriminator %s --dg_rate %d --dp_epoch %d --weight_pic %d --dropout %d' % (script_path, name, ep, lrG, lrD, bs, data_path, lo, dis, dgr, dpe, weight_pic, dropout)                         
+                                    name = '%s_%s'%(n,dis)
+                                    com = 'python \"%s\" --model_name %s --ep %d --lrG %f --lrD %f --bs %d --data_path \"%s\" --g_loss_func %s --discriminator %s --dg_rate %d --dp_epoch %d --weight_pic %d --dropout %d --channels 3' % (script_path, name, ep, lrG, lrD, bs, data_path, lo, dis, dgr, dpe, weight_pic, dropout)                         
                                     os.system(com)
                                     

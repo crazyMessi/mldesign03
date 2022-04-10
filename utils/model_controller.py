@@ -70,7 +70,8 @@ def model_selector(opt):
                       
                       'Dump': DumpGenerator()
                       }
-    discriminator_list = {'pixel': PixelDiscriminator(in_channels=opt['channels']),'patch':NLayerDiscriminator(in_channels=opt['channels']*2)}
+    discriminator_list = {'pixel': PixelDiscriminator(in_channels=opt['channels']),'patch':NLayerDiscriminator(in_channels=opt['channels']*2),
+                            'resnet18': resnet(18,0),'resnet34': resnet(34,0),'p_resnet18': resnet(18,1),'p_resnet34': resnet(34,1)}
 
     founded = False
     while not founded:
