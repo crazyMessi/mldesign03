@@ -1,19 +1,19 @@
 import os
-eps = [201]
-lrGs = [0.001]
-bss = [8]
+eps = [209]
+lrGs = [0.001,0.0005]
+bss = [4,8]
 g_loss_func = ['fixed_L1']
 crop_wight = [-0.99]
 dropout = 1
 if_save = 0
-ad_res = ['000000']
-residual_unet = ['111111']
+ad_res = ['00000']
+residual_unet = ['11111']
 data_path = 'fontdata'
 script_path = 'my_train.py'
 
-model_name = ['UResGen']
-n_downsampling = [0,1,2,3,4,5]
-n_block = [6]
+model_name = ['ResGen']
+n_downsampling = [2]
+n_block = [22,34]
 
 
 

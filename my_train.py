@@ -112,7 +112,7 @@ def save_test_imgs(ep):
 model.train()
 
 min_tloss = 500
-test_freq = 10
+test_freq = 1
 
 bs_count = len(dataloader)
 pro.start(my_opt['ep'] * bs_count)

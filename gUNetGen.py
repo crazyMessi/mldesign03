@@ -1,5 +1,5 @@
 import os
-eps = [1]
+eps = [209]
 lrGs = [0.002]
 bss = [8]
 model_name = ['UNetGen_origin']

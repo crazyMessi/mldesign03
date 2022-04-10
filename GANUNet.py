@@ -4,16 +4,16 @@ script_path = 'my_train.py'
 
 # 不变参数
 gan_name = ['pic2pic']
-eps = [2]
-lrGs = [0.002]
+eps = [210]
+lrGs = [0.0001]
 bss = [8]
 lrDs = [0.000005]
-weight_pic = 20
+weight_pic = 10
 dropout = 1
 g_loss_func = ['fixed_L1']                              
 discriminator = ['pixel']
 # 变参
-dg_rate = [1,2,4]
+dg_rate = [1]
 dp_epoch = [0]
 
 for ep in eps:

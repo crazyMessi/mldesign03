@@ -1,7 +1,7 @@
 import os
 eps = [201] #1表示g
-lrGs = [0.002]
-bss = [8]
+lrGs = [0.0001]
+bss = [40]
 autogen_name = ['AutoEncoderGen_origin']
 g_loss_func = ['fixed_L1']
 residual_learning = ['00000']

@@ -127,7 +127,7 @@ class UNetUp(nn.Module):
     def forward(self, x, skip_input):
         x = self.model(x)
         if self.if_crop > 0:
-            x = torch.cat((x, skip_input*self.crop_weight), 1)
+            x = torch.cat((x+skip_input, skip_input*self.crop_weight), 1)
         return x
 
 
