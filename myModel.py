@@ -619,6 +619,19 @@ class GAN(nn.Module):
                     'loss_sVg': loss_sVg.item(),'loss_fake':loss_fake,'loss_real':loss_real.item()}
         return loss_dic
 
+    def additional_step(self, source):
+        generate = self.generator(source)
+        svg = self.discriminator(source,generate)
+        invalid = svg.clone().detach() * 0
+        valid = invalid + 1
+        # 计算生成模型误差
+        loss_svg = self.d_loss_func(svg, valid)
+        self.optimizer_G.zero_grad()
+        loss_svg.backward()
+        self.optimizer_G.step()
+        self.optimizer_D.zero_grad()
+
+
 
 # 基于单个generator的图片生成器
 class AutoEncoderGen(nn.Module):

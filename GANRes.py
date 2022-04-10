@@ -5,7 +5,7 @@ script_path = 'my_train.py'
 
 # 不变参数
 gan_name = ['ResGAN']
-eps = [202]
+eps = [204]
 lrGs = [0.001]
 bss = [8]
 lrDs = [0.00005]
@@ -15,7 +15,7 @@ g_loss_func = ['fixed_L1']
 discriminator = ['p_resnet18']
 # 变参
 dg_rate = [1]
-dp_epoch = [10]
+dp_epoch = [0]
 
 for ep in eps:
     for n in gan_name:

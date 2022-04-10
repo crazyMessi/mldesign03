@@ -123,6 +123,10 @@ for epoch in range(my_opt['epoch'], my_opt['ep']):
         # Model inputs
         source = batch['B'].type(Tensor)
         target = batch['A'].type(Tensor)
+        if my_opt['use_val']>0:
+            val_imgs = next(iter(test_dataloader))
+            val_source = val_imgs['B'].type(Tensor)
+            model.additional_step(val_source)
         
         # 训练模型
         loss_dic.append(model.step(source, target))
